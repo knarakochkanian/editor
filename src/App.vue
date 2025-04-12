@@ -1,128 +1,146 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import Elements from './components/Elements.vue'
 import ColorPalette from './components/ColorPalette.vue'
 import Alignment from './components/Alignment.vue'
 import Properties from './components/Properties.vue'
-import TextColorPicker from './components/TextColorPicker.vue'
-import TextProperties from './components/TextProperties.vue'
 import Header from "@/components/Header.vue";
-import ElementControls from './components/ElementControls.vue'
-import CanvasResize from './components/CanvasResize.vue'
-import { useElementStore } from './stores/elementStore'
 
-const store = useElementStore()
 const backgroundImage = ref(null)
+
 
 const handleSetBackground = (url) => {
   backgroundImage.value = url
 }
 
 const canvasSize = ref({
-  width: 620,
-  height: 520
+  width: 720,
+  height: 720
 })
 
 const orientation = ref('landscape')
+const selectedElement = ref(null)
+const elements = ref([])
+
 
 const handleAddElement = (element) => {
-  store.addElement(element)
+  const isText = element.type === 'text' || element.id === 'text'
+
+  const newElement = {
+    id: Date.now(),
+    type: element.type || element.id,
+    content: '',
+    style: element.style || '',
+    x: 50,
+    y: 50,
+    width: 200,
+    height: 100,
+    rotation: 0,
+    opacity: 100,
+    isNew: isText,
+    ...element
+  }
+
+  // Parse style string into object if it's a string
+  if (typeof newElement.style === 'string') {
+    const styleObj = {}
+    newElement.style.split(';').forEach(style => {
+      if (style.trim()) {
+        const [key, value] = style.split(':').map(s => s.trim())
+        styleObj[key.replace(/-([a-z])/g, g => g[1].toUpperCase())] = value
+      }
+    })
+    newElement.style = styleObj
+  }
+
+  elements.value.push(newElement)
+  selectedElement.value = newElement
 }
 
 const handleElementSelect = (element) => {
-  store.setSelectedElement(element)
+  selectedElement.value = element
 }
 
 const handleTextEdit = (event, element) => {
-  if (event.target.value === null || event.target.value === undefined) {
-    element.content = ''
-  } else {
-    element.content = event.target.value
-    const textarea = event.target
-    const lines = element.content.split('\n').length
-    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20
-    const newHeight = Math.max(100, lines * lineHeight + 24)
-    element.height = newHeight
-    store.updateElement(element)
-  }
+  element.content = event.target.value
 }
 
 const handleTextClick = (event, element) => {
   event.stopPropagation()
-  store.setSelectedElement(element)
+  selectedElement.value = element
 }
 
 const handleElementUpdate = (updatedElement) => {
-  store.updateElement(updatedElement)
+  const index = elements.value.findIndex(el => el.id === updatedElement.id)
+  if (index !== -1) {
+    elements.value[index] = updatedElement
+  }
 }
 
 const handleAlignment = (alignment) => {
-  if (!store.selectedElement) return
+  if (!selectedElement.value) return
   
-  const element = { ...store.selectedElement }
-  const contentArea = document.querySelector('.content-area')
-  const contentRect = contentArea.getBoundingClientRect()
-  
-
-  const padding = 24
-  const availableWidth = contentRect.width - (padding * 2)
-  const availableHeight = contentRect.height - (padding * 2)
+  const element = selectedElement.value
+  const container = document.querySelector('.content-area')
+  const containerRect = container.getBoundingClientRect()
   
   switch (alignment) {
     case 'top-left':
-      element.x = padding
-      element.y = padding
+      element.x = 0
+      element.y = 0
       break
     case 'top-center':
-      element.x = padding + (availableWidth - element.width) / 2
-      element.y = padding
+      element.x = (containerRect.width - element.width) / 2
+      element.y = 0
       break
     case 'top-right':
-      element.x = padding + availableWidth - element.width
-      element.y = padding
+      element.x = containerRect.width - element.width
+      element.y = 0
       break
     case 'middle-left':
-      element.x = padding
-      element.y = padding + (availableHeight - element.height) / 2
+      element.x = 0
+      element.y = (containerRect.height - element.height) / 2
       break
     case 'middle-center':
-      element.x = padding + (availableWidth - element.width) / 2
-      element.y = padding + (availableHeight - element.height) / 2
+      element.x = (containerRect.width - element.width) / 2
+      element.y = (containerRect.height - element.height) / 2
       break
     case 'middle-right':
-      element.x = padding + availableWidth - element.width
-      element.y = padding + (availableHeight - element.height) / 2
+      element.x = containerRect.width - element.width
+      element.y = (containerRect.height - element.height) / 2
       break
     case 'bottom-left':
-      element.x = padding
-      element.y = padding + availableHeight - element.height
+      element.x = 0
+      element.y = containerRect.height - element.height
       break
     case 'bottom-center':
-      element.x = padding + (availableWidth - element.width) / 2
-      element.y = padding + availableHeight - element.height
+      element.x = (containerRect.width - element.width) / 2
+      element.y = containerRect.height - element.height
       break
     case 'bottom-right':
-      element.x = padding + availableWidth - element.width
-      element.y = padding + availableHeight - element.height
+      element.x = containerRect.width - element.width
+      element.y = containerRect.height - element.height
       break
   }
-
-  store.updateElement(element)
 }
+
 
 const handleSchedulePost = () => {
   console.log('Scheduling post')
 }
 
 const handleDownload = () => {
+
   const layoutData = {
     size: canvasSize.value,
     orientation: orientation.value,
-    elements: store.elements
+    elements: elements.value
   }
   
+
   const jsonString = JSON.stringify(layoutData, null, 2)
   
+
   const blob = new Blob([jsonString], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -132,6 +150,16 @@ const handleDownload = () => {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+const handleUndo = () => {
+
+  console.log('Undoing last action')
+}
+
+const handleRedo = () => {
+
+  console.log('Redoing last action')
 }
 
 const startDrag = (event, element) => {
@@ -151,11 +179,12 @@ const startDrag = (event, element) => {
   document.addEventListener('mousemove', drag)
   document.addEventListener('mouseup', stopDrag)
 }
-
 import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
-const downloadAsPNG = async () => {
+const downloadAsPDF = async () => {
   const content = document.querySelector('.content-area')
+
   if (!content) return
 
   const canvas = await html2canvas(content, {
@@ -164,204 +193,47 @@ const downloadAsPNG = async () => {
   })
 
   const imgData = canvas.toDataURL('image/png')
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'px',
+    format: [canvas.width, canvas.height]
+  })
 
-  const a = document.createElement('a')
-  a.href = imgData
-  a.download = 'layout.png'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+  pdf.save('layout.pdf')
 }
 
-
-const handleCopyElement = () => {
-  if (!store.selectedElement) return
-
-  const newElement = {
-    ...store.selectedElement,
-    id: Date.now(),
-    x: store.selectedElement.x + 20,
-    y: store.selectedElement.y + 20
-  }
-  store.addElement(newElement)
-  store.setSelectedElement(newElement)
-}
-
-const handleDeleteElement = () => {
-  if (!store.selectedElement) return
-
-  const index = store.elements.findIndex(el => el.id === store.selectedElement.id)
-  if (index !== -1) {
-    store.elements.splice(index, 1)
-    store.setSelectedElement(null)
-  }
-}
-
-const handleMoveElement = (direction) => {
-  if (!store.selectedElement) return
-
-  const index = store.elements.findIndex(el => el.id === store.selectedElement.id)
-  if (index === -1) return
-
-  if (direction === 'up' && index < store.elements.length - 1) {
-
-    [store.elements[index], store.elements[index + 1]] = [store.elements[index + 1], store.elements[index]]
-  } else if (direction === 'down' && index > 0) {
-    [store.elements[index], store.elements[index - 1]] = [store.elements[index - 1], store.elements[index]]
-  }
-}
-
-const handleKeyDown = (event) => {
-  if (!store.selectedElement) return
-
-  if (store.selectedElement.type === 'text' && event.target.tagName.toLowerCase() === 'input') {
-    return
-  }
-
-  const step = event.shiftKey ? 10 : 1
-
-  switch (event.key) {
-    case 'ArrowLeft':
-      store.selectedElement.x -= step
-      event.preventDefault()
-      break
-    case 'ArrowRight':
-      store.selectedElement.x += step
-      event.preventDefault()
-      break
-    case 'ArrowUp':
-      store.selectedElement.y -= step
-      event.preventDefault()
-      break
-    case 'ArrowDown':
-      store.selectedElement.y += step
-      event.preventDefault()
-      break
-  }
-
-  const index = store.elements.findIndex(el => el.id === store.selectedElement.id)
-  if (index !== -1) {
-    store.elements[index] = { ...store.selectedElement }
-  }
-}
-
-const handleCanvasResize = ({ width, height, isProportional }) => {
-  const scaleX = width / canvasSize.value.width
-  const scaleY = height / canvasSize.value.height
-
-  const newWidth = parseInt(width)
-  const newHeight = parseInt(height)
-
-  console.log('Resizing canvas to:', { width: newWidth, height: newHeight })
-
-  canvasSize.value = {
-    width: newWidth,
-    height: newHeight
-  }
-  
-  if (isProportional) {
-    store.elements.forEach(element => {
-      const updatedElement = {
-        ...element,
-        x: Math.round(element.x * scaleX),
-        y: Math.round(element.y * scaleY),
-        width: Math.round(element.width * scaleX),
-        height: Math.round(element.height * scaleY)
-      }
-      store.updateElement(updatedElement)
-    })
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
-})
 
 </script>
 
 <template>
-  <Header @download-pdf="downloadAsPNG" />
+  <Header @download-pdf="downloadAsPDF" />
   <div class="editor-container">
     <div class="left-panel">
-      <Elements 
-        @add-element="handleAddElement" 
-        @set-background="handleSetBackground"
-        @resize-canvas="handleCanvasResize"
-      />
+      <Elements @add-element="handleAddElement" @set-background="handleSetBackground" />
     </div>
 
     <div class="main-content">
-      <div class="layout-pixta-desktop-header">
-        <div class="layout-pixta-desktop-header__rotate">
-          <div class="flex gap-xxxs">
-            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="rotateLeft">
-            <span class="button__wrapper">
-              <span class="button__ico">
-                <svg><use xlink:href="#ico-rotate-left"></use></svg>
-              </span>
-            </span>
-            </button>
-            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="rotateRight">
-            <span class="button__wrapper">
-              <span class="button__ico">
-                <svg><use xlink:href="#ico-rotate-right"></use></svg>
-              </span>
-            </span>
-            </button>
-          </div>
-        </div>
-
-        <div class="flex items-center">
-          <div class="text-sm text-right" style="min-width: 3em;">
-            {{ scale }}%
-          </div>
-          <div class="flex-1" style="margin: 0 0.8em;">
-            <input
-                type="range"
-                v-model="scale"
-                min="5"
-                max="300"
-                class="slider"
-                @input="handleScaleChange"
-            >
-          </div>
-          <div>
-            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="fitToScreen">
-            <span class="button__wrapper">
-              <span class="button__ico">
-                <svg><use xlink:href="#ico-fit-to-screen"></use></svg>
-              </span>
-            </span>
-            </button>
-          </div>
-        </div>
-      </div>
       <div
           class="content-area"
           :style="{
-            width: canvasSize.width + 'px',
-            height: canvasSize.height + 'px',
-            backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            transition: 'width 0.3s, height 0.3s'
-          }"
+    width: canvasSize.width + 'px',
+    height: canvasSize.height + 'px',
+    backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
+  }"
       >
-        <div v-if="store.elements.length === 0" class="placeholder-content">
-          <h2>Область содержимого</h2>
-          <p>Добавьте элементы с левой панели, чтобы начать создавать свой дизайн</p>
+        <div v-if="elements.length === 0" class="placeholder-content">
+          <h2>Content Area</h2>
+          <p>Add elements from the left panel to start creating your design</p>
         </div>
         <div
-          v-for="element in store.elements"
+          v-for="element in elements"
           :key="element.id"
           class="content-element"
-          :class="['content-element', element.class, { selected: store.selectedElement?.id === element.id }]"
+          :class="['content-element', element.class, { selected: selectedElement?.id === element.id }]"
           :style="{
-            position: 'absolute',
             left: element.x + 'px',
             top: element.y + 'px',
             width: element.width + 'px',
@@ -376,17 +248,17 @@ onUnmounted(() => {
 
           <div v-if="element.type === 'text'" class="text-element" @click="handleTextClick($event, element)">
             <input
-              v-if="store.selectedElement?.id === element.id"
-              type="text"
-              v-model="element.content"
-              ref="textInput"
-              class="text-input"
-              @blur="element.isNew = false"
-              @input="handleTextEdit($event, element)"
-              @click.stop
-            />
+  v-if="selectedElement?.id === element.id"
+  type="text"
+  v-model="element.content"
+  ref="textInput"
+  class="text-input"
+  @blur="element.isNew = false"
+  @click.stop
+/>
             <span v-else>{{ element.content }}</span>
           </div>
+          
 
           <div v-else-if="element.type === 'rectangle'" class="shape-element rectangle"></div>
           <div v-else-if="element.type === 'circle'" class="shape-element circle"></div>
@@ -398,33 +270,15 @@ onUnmounted(() => {
           <img v-else-if="element.type === 'image'" :src="element.url" :alt="element.name" class="image-element">
         </div>
       </div>
-      
-      <ElementControls
-        v-if="store.selectedElement"
-        @copy="handleCopyElement"
-        @delete="() => store.deleteElement(store.selectedElement.id)"
-        @move-up="() => handleMoveElement('up')"
-        @move-down="() => handleMoveElement('down')"
-      />
     </div>
+
 
     <div class="right-panel">
       <Alignment @align="handleAlignment" />
-      <TextColorPicker 
-        :selected-element="store.selectedElement"
-        @update="store.updateElement"
-      />
-      <TextProperties
-        :selected-element="store.selectedElement"
-        @update="store.updateElement"
-      />
-      <ColorPalette 
-        :selected-element="store.selectedElement"
-        @update="store.updateElement"
-      />
+      <ColorPalette />
       <Properties 
-        :selected-element="store.selectedElement"
-        @update="store.updateElement"
+        :selected-element="selectedElement"
+        @update="handleElementUpdate"
       />
     </div>
   </div>
@@ -434,6 +288,7 @@ onUnmounted(() => {
 .editor-container {
   display: grid;
   grid-template-columns: 450px 1fr 300px;
+  height: 100vh;
   background-color: #F5F5F5;
 }
 
@@ -441,7 +296,7 @@ onUnmounted(() => {
   background-color: white;
   border-right: 1px solid #E0E0E0;
   overflow-y: auto;
-  padding-left: 20px;
+  padding: 20px;
 }
 
 .right-panel {
@@ -450,6 +305,8 @@ onUnmounted(() => {
 }
 
 .main-content {
+  display: flex;
+  flex-direction: column;
   padding: 20px;
   background-color: #F5F5F5;
 }
@@ -469,7 +326,6 @@ onUnmounted(() => {
   overflow: hidden;
   margin: 0 auto;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: width 0.3s, height 0.3s;
 }
 
 .placeholder-content {
@@ -514,7 +370,7 @@ onUnmounted(() => {
   border-radius: 8px;
   background-color: transparent;
   font-size: inherit;
-  color: inherit;
+  color: #333;
   cursor: text;
   position: relative;
 }
@@ -546,7 +402,7 @@ onUnmounted(() => {
 .shape-element {
   width: 100%;
   height: 100%;
-  background-color: inherit;
+  background-color: #F37021;
   border-radius: 10px;
 }
 
@@ -588,79 +444,6 @@ input[type="number"]:focus {
   border-color: #2196F3;
 }
 
-.layout-pixta-desktop-header {
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
 
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
 
-.button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.button__wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.button__ico {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.button__ico svg {
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
-}
-
-.slider {
-  width: 100%;
-  height: 4px;
-  background: #ddd;
-  border-radius: 2px;
-  outline: none;
-  -webkit-appearance: none;
-}
-
-.slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #F37021;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: #F37021;
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
-}
-
-.text-sm {
-  font-size: 0.875rem;
-}
 </style>

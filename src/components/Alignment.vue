@@ -10,6 +10,17 @@ const alignmentOptions = [
   { id: 'bottom-center', icon: '/svgs/align/bottom.svg', label: 'Bottom' },
   { id: 'middle-center', icon: '/svgs/align/center.svg', label: 'center' },
 ]
+// const alignmentOptions = [
+//   { id: 'top-left', icon: '/svgs/align/top-left.svg', label: 'Top Left' },
+//   { id: 'top-center', icon: '/svgs/align/top.svg', label: 'Top Center' },
+//   { id: 'top-right', icon: '/svgs/align/top-right.svg', label: 'Top Right' },
+//   { id: 'middle-left', icon: '/svgs/align/middle-left.svg', label: 'Middle Left' },
+//   { id: 'middle-center', icon: '/svgs/align/middle.svg', label: 'Middle Center' },
+//   { id: 'middle-right', icon: '/svgs/align/middle-right.svg', label: 'Middle Right' },
+//   { id: 'bottom-left', icon: '/svgs/align/bottom-left.svg', label: 'Bottom Left' },
+//   { id: 'bottom-center', icon: '/svgs/align/bottom.svg', label: 'Bottom Center' },
+//   { id: 'bottom-right', icon: '/svgs/align/bottom-right.svg', label: 'Bottom Right' },
+// ]
 
 
 const handleAlignment = (option) => {
@@ -59,14 +70,5 @@ const handleAlignment = (option) => {
   border: unset;
 }
 
-.alignment-btn:hover {
-  background-color: #f0f0f0;
-  border-color: #d0d0d0;
-}
 
-.alignment-btn img {
-  width: 20px;
-  height: 20px;
-  object-fit: contain;
-}
 </style> 

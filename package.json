@@ -1,0 +1,23 @@
+{
+  "name": "graphiceditor",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@nuxt/image": "^1.10.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^2.3.2",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.2.1",
+    "vite-plugin-vue-devtools": "^7.7.2"
+  }
+}

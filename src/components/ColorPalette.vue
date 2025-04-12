@@ -1,156 +1,74 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { useElementStore } from '../stores/elementStore'
-
-const store = useElementStore()
-const props = defineProps({
-  selectedElement: {
-    type: Object,
-    default: null
-  }
-})
-
-const emit = defineEmits(['update'])
+import { ref } from 'vue'
 
 const selectedColor = ref('#000000')
-const backgroundColor = ref('#FFFFFF')
-const lineHeight = ref(1.5)
-const letterSpacing = ref(0)
+const gradientType = ref('linear')
+const gradientAngle = ref(0)
+const gradientColors = ref(['#ff0000', '#00ff00'])
 
 const predefinedPalettes = {
-  basic: ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF'],
-  warm: ['#FF9900', '#FF6600', '#FF3300', '#CC0000', '#990000'],
-  cool: ['#00CCFF', '#0099FF', '#0066FF', '#0033FF', '#0000CC']
+  pastel: ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFE4BA'],
+  contrast: ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF'],
+  summer: ['#FFD700', '#FF69B4', '#98FB98', '#87CEEB', '#FFA07A'],
+  winter: ['#F0F8FF', '#E6E6FA', '#B0E0E6', '#DDA0DD', '#B0C4DE']
 }
 
-watch(
-  () => props.selectedElement,
-  (newVal) => {
-    if (newVal?.style) {
+const gradientTypes = [
+  { value: 'linear', label: 'Linear' },
+  { value: 'radial', label: 'Radial' },
+  { value: 'angular', label: 'Angular' },
+  { value: 'mirrored', label: 'Mirrored' }
+]
 
-      if (newVal.type === 'text') {
-        selectedColor.value = newVal.style.color || '#000000'
-        backgroundColor.value = newVal.style.backgroundColor || 'transparent'
-        lineHeight.value = parseFloat(newVal.style.lineHeight) || 1.5
-        letterSpacing.value = parseFloat(newVal.style.letterSpacing) || 0
-      }
-
-      else if (newVal.type === 'rectangle' || newVal.type === 'circle' || newVal.type === 'triangle' || newVal.type === 'star' || newVal.type === 'heart') {
-        backgroundColor.value = newVal.style.backgroundColor || '#F37021'
-      }
-    }
-  },
-  { immediate: true }
-)
-
-const handleColorChange = (color) => {
-  selectedColor.value = color
-  if (props.selectedElement?.type === 'text') {
-    store.updateTextStyle({ color })
-    store.updateElement({
-      ...props.selectedElement,
-      style: {
-        ...props.selectedElement.style,
-        color
-      }
-    })
-  }
+const updateGradient = () => {
+  const gradient = `${gradientType.value}-gradient(${gradientAngle.value}deg, ${gradientColors.value.join(', ')})`
+  return gradient
 }
 
-const handleBackgroundColorChange = (color) => {
-  backgroundColor.value = color
-  if (props.selectedElement) {
-    store.updateTextStyle({ 
-      backgroundColor: color,
-      background: color
-    })
-    store.updateElement({
-      ...props.selectedElement,
-      style: {
-        ...props.selectedElement.style,
-        backgroundColor: color,
-        background: color
-      }
-    })
-  }
+const addGradientColor = () => {
+  gradientColors.value.push('#000000')
 }
 
-const handleLineHeightChange = (value) => {
-  lineHeight.value = value
-  if (props.selectedElement?.type === 'text') {
-    store.updateTextStyle({ lineHeight: value })
-    store.updateElement({
-      ...props.selectedElement,
-      style: {
-        ...props.selectedElement.style,
-        lineHeight: value
-      }
-    })
-  }
-}
-
-const handleLetterSpacingChange = (value) => {
-  letterSpacing.value = value
-  if (props.selectedElement?.type === 'text') {
-    store.updateTextStyle({ letterSpacing: `${value}px` })
-    store.updateElement({
-      ...props.selectedElement,
-      style: {
-        ...props.selectedElement.style,
-        letterSpacing: `${value}px`
-      }
-    })
+const removeGradientColor = (index) => {
+  if (gradientColors.value.length > 2) {
+    gradientColors.value.splice(index, 1)
   }
 }
 </script>
 
 <template>
-  <div class="color-palette" v-if="selectedElement">
-    <div class="section" v-if="selectedElement.type === 'text'">
-      <h4>Цвет текста</h4>
+  <div class="color-palette">
+    <div class="section">
+      <h4>Solid Color</h4>
       <div class="color-picker">
-        <input type="color" v-model="selectedColor" @change="handleColorChange(selectedColor)">
-        <input 
-          type="text" 
-          v-model="selectedColor" 
-          class="color-code"
-          @change="handleColorChange(selectedColor)"
-        >
-      </div>
-    </div>
-
-    <div class="section" v-if="selectedElement.type === 'text'">
-      <h4>Межстрочный интервал</h4>
-      <div class="range-control">
-        <input 
-          type="range" 
-          v-model="lineHeight" 
-          min="0.5" 
-          max="3" 
-          step="0.1"
-          @input="handleLineHeightChange(lineHeight)"
-        >
-        <span class="range-value">{{ lineHeight }}</span>
-      </div>
-    </div>
-
-    <div class="section" v-if="selectedElement.type === 'text'">
-      <h4>Интервал между символами</h4>
-      <div class="range-control">
-        <input 
-          type="range" 
-          v-model="letterSpacing" 
-          min="-5" 
-          max="20" 
-          step="1"
-          @input="handleLetterSpacingChange(letterSpacing)"
-        >
-        <span class="range-value">{{ letterSpacing }}px</span>
+        <input type="color" v-model="selectedColor">
+        <input type="text" v-model="selectedColor" class="color-code">
       </div>
     </div>
 
     <div class="section">
-      <h4>Готовые цвета</h4>
+      <h4>Gradient</h4>
+      <div class="gradient-controls">
+        <select v-model="gradientType">
+          <option v-for="type in gradientTypes" :key="type.value" :value="type.value">
+            {{ type.label }}
+          </option>
+        </select>
+        
+        <div class="gradient-colors">
+          <div v-for="(color, index) in gradientColors" :key="index" class="gradient-color">
+            <input type="color" v-model="gradientColors[index]">
+            <button @click="removeGradientColor(index)" :disabled="gradientColors.length <= 2">×</button>
+          </div>
+          <button @click="addGradientColor">+</button>
+        </div>
+
+        <div class="gradient-preview" :style="{ background: updateGradient() }"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Predefined Palettes</h4>
       <div class="palettes">
         <div v-for="(colors, name) in predefinedPalettes" :key="name" class="palette">
           <h5>{{ name }}</h5>
@@ -160,7 +78,7 @@ const handleLetterSpacingChange = (value) => {
               :key="color"
               class="palette-color"
               :style="{ backgroundColor: color }"
-              @click="handleBackgroundColorChange(color)"
+              @click="selectedColor = color"
             ></div>
           </div>
         </div>
@@ -181,8 +99,6 @@ const handleLetterSpacingChange = (value) => {
 .section h4 {
   margin-bottom: 0.5rem;
   color: #333;
-  font-size: 14px;
-  font-weight: 500;
 }
 
 .color-picker {
@@ -196,6 +112,30 @@ const handleLetterSpacingChange = (value) => {
   padding: 0.25rem;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+.gradient-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gradient-colors {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.gradient-color {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.gradient-preview {
+  height: 40px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
 }
 
 .palettes {
@@ -222,6 +162,19 @@ const handleLetterSpacingChange = (value) => {
   border: 1px solid #ddd;
 }
 
+button {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 input[type="color"] {
   width: 40px;
   height: 40px;
@@ -229,36 +182,5 @@ input[type="color"] {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-}
-
-.range-control {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.range-control input[type="range"] {
-  flex: 1;
-  height: 4px;
-  -webkit-appearance: none;
-  background: #ddd;
-  border-radius: 2px;
-  outline: none;
-}
-
-.range-control input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #F37021;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.range-value {
-  min-width: 40px;
-  text-align: right;
-  font-size: 14px;
-  color: #666;
 }
 </style> 
