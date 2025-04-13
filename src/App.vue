@@ -1,10 +1,13 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import Elements from './components/Elements.vue'
 import ColorPalette from './components/ColorPalette.vue'
 import Alignment from './components/Alignment.vue'
 import Properties from './components/Properties.vue'
+import TextColorPicker from './components/TextColorPicker.vue'
+import TextProperties from './components/TextProperties.vue'
 import Header from "@/components/Header.vue";
+import ElementControls from './components/ElementControls.vue'
 
 const backgroundImage = ref(null)
 
@@ -14,8 +17,8 @@ const handleSetBackground = (url) => {
 }
 
 const canvasSize = ref({
-  width: 720,
-  height: 720
+  width: 620,
+  height: 520
 })
 
 const orientation = ref('landscape')
@@ -29,7 +32,7 @@ const handleAddElement = (element) => {
   const newElement = {
     id: Date.now(),
     type: element.type || element.id,
-    content: '',
+    content: isText ? '' : '',
     style: element.style || '',
     x: 50,
     y: 50,
@@ -55,6 +58,17 @@ const handleAddElement = (element) => {
 
   elements.value.push(newElement)
   selectedElement.value = newElement
+
+  // Automatically focus the text input if it's a new text element
+  if (isText) {
+    setTimeout(() => {
+      const textInput = document.querySelector('.text-input')
+      if (textInput) {
+        textInput.focus()
+        textInput.value = ''  // Очищаем значение поля ввода
+      }
+    }, 100)
+  }
 }
 
 const handleElementSelect = (element) => {
@@ -62,7 +76,11 @@ const handleElementSelect = (element) => {
 }
 
 const handleTextEdit = (event, element) => {
-  element.content = event.target.value
+  if (event.target.value === null || event.target.value === undefined) {
+    element.content = ''
+  } else {
+    element.content = event.target.value
+  }
 }
 
 const handleTextClick = (event, element) => {
@@ -81,46 +99,57 @@ const handleAlignment = (alignment) => {
   if (!selectedElement.value) return
   
   const element = selectedElement.value
-  const container = document.querySelector('.content-area')
-  const containerRect = container.getBoundingClientRect()
+  const contentArea = document.querySelector('.content-area')
+  const contentRect = contentArea.getBoundingClientRect()
+  
+  // Calculate available space (content area dimensions minus padding)
+  const padding = 24 // padding from CSS
+  const availableWidth = contentArea.clientWidth - (padding * 2)
+  const availableHeight = contentArea.clientHeight - (padding * 2)
   
   switch (alignment) {
     case 'top-left':
-      element.x = 0
-      element.y = 0
+      element.x = padding
+      element.y = padding
       break
     case 'top-center':
-      element.x = (containerRect.width - element.width) / 2
-      element.y = 0
+      element.x = padding + (availableWidth - element.width) / 2
+      element.y = padding
       break
     case 'top-right':
-      element.x = containerRect.width - element.width
-      element.y = 0
+      element.x = padding + availableWidth - element.width
+      element.y = padding
       break
     case 'middle-left':
-      element.x = 0
-      element.y = (containerRect.height - element.height) / 2
+      element.x = padding
+      element.y = padding + (availableHeight - element.height) / 2
       break
     case 'middle-center':
-      element.x = (containerRect.width - element.width) / 2
-      element.y = (containerRect.height - element.height) / 2
+      element.x = padding + (availableWidth - element.width) / 2
+      element.y = padding + (availableHeight - element.height) / 2
       break
     case 'middle-right':
-      element.x = containerRect.width - element.width
-      element.y = (containerRect.height - element.height) / 2
+      element.x = padding + availableWidth - element.width
+      element.y = padding + (availableHeight - element.height) / 2
       break
     case 'bottom-left':
-      element.x = 0
-      element.y = containerRect.height - element.height
+      element.x = padding
+      element.y = padding + availableHeight - element.height
       break
     case 'bottom-center':
-      element.x = (containerRect.width - element.width) / 2
-      element.y = containerRect.height - element.height
+      element.x = padding + (availableWidth - element.width) / 2
+      element.y = padding + availableHeight - element.height
       break
     case 'bottom-right':
-      element.x = containerRect.width - element.width
-      element.y = containerRect.height - element.height
+      element.x = padding + availableWidth - element.width
+      element.y = padding + availableHeight - element.height
       break
+  }
+
+  // Update the element in the elements array
+  const index = elements.value.findIndex(el => el.id === element.id)
+  if (index !== -1) {
+    elements.value[index] = { ...element }
   }
 }
 
@@ -203,6 +232,85 @@ const downloadAsPDF = async () => {
   pdf.save('layout.pdf')
 }
 
+const handleCopyElement = () => {
+  if (!selectedElement.value) return
+
+  const newElement = {
+    ...selectedElement.value,
+    id: Date.now(),
+    x: selectedElement.value.x + 20,
+    y: selectedElement.value.y + 20
+  }
+  elements.value.push(newElement)
+  selectedElement.value = newElement
+}
+
+const handleDeleteElement = () => {
+  if (!selectedElement.value) return
+
+  const index = elements.value.findIndex(el => el.id === selectedElement.value.id)
+  if (index !== -1) {
+    elements.value.splice(index, 1)
+    selectedElement.value = null
+  }
+}
+
+const handleMoveElement = (direction) => {
+  if (!selectedElement.value) return
+
+  const index = elements.value.findIndex(el => el.id === selectedElement.value.id)
+  if (index === -1) return
+
+  if (direction === 'up' && index < elements.value.length - 1) {
+    // Move element up in z-index (swap with the next element)
+    [elements.value[index], elements.value[index + 1]] = [elements.value[index + 1], elements.value[index]]
+  } else if (direction === 'down' && index > 0) {
+    // Move element down in z-index (swap with the previous element)
+    [elements.value[index], elements.value[index - 1]] = [elements.value[index - 1], elements.value[index]]
+  }
+}
+
+const handleKeyDown = (event) => {
+  if (!selectedElement.value) return
+
+  if (selectedElement.value.type === 'text' && event.target.tagName.toLowerCase() === 'input') {
+    return
+  }
+
+  const step = event.shiftKey ? 10 : 1
+
+  switch (event.key) {
+    case 'ArrowLeft':
+      selectedElement.value.x -= step
+      event.preventDefault()
+      break
+    case 'ArrowRight':
+      selectedElement.value.x += step
+      event.preventDefault()
+      break
+    case 'ArrowUp':
+      selectedElement.value.y -= step
+      event.preventDefault()
+      break
+    case 'ArrowDown':
+      selectedElement.value.y += step
+      event.preventDefault()
+      break
+  }
+
+  const index = elements.value.findIndex(el => el.id === selectedElement.value.id)
+  if (index !== -1) {
+    elements.value[index] = { ...selectedElement.value }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
+})
 
 </script>
 
@@ -225,8 +333,8 @@ const downloadAsPDF = async () => {
   }"
       >
         <div v-if="elements.length === 0" class="placeholder-content">
-          <h2>Content Area</h2>
-          <p>Add elements from the left panel to start creating your design</p>
+          <h2>Область содержимого</h2>
+          <p>Добавьте элементы с левой панели, чтобы начать создавать свой дизайн</p>
         </div>
         <div
           v-for="element in elements"
@@ -234,6 +342,7 @@ const downloadAsPDF = async () => {
           class="content-element"
           :class="['content-element', element.class, { selected: selectedElement?.id === element.id }]"
           :style="{
+            position: 'absolute',
             left: element.x + 'px',
             top: element.y + 'px',
             width: element.width + 'px',
@@ -248,14 +357,15 @@ const downloadAsPDF = async () => {
 
           <div v-if="element.type === 'text'" class="text-element" @click="handleTextClick($event, element)">
             <input
-  v-if="selectedElement?.id === element.id"
-  type="text"
-  v-model="element.content"
-  ref="textInput"
-  class="text-input"
-  @blur="element.isNew = false"
-  @click.stop
-/>
+              v-if="selectedElement?.id === element.id"
+              type="text"
+              v-model="element.content"
+              ref="textInput"
+              class="text-input"
+              @blur="element.isNew = false"
+              @input="handleTextEdit($event, element)"
+              @click.stop
+            />
             <span v-else>{{ element.content }}</span>
           </div>
           
@@ -270,12 +380,31 @@ const downloadAsPDF = async () => {
           <img v-else-if="element.type === 'image'" :src="element.url" :alt="element.name" class="image-element">
         </div>
       </div>
+      
+      <ElementControls
+        v-if="selectedElement"
+        @copy="handleCopyElement"
+        @delete="handleDeleteElement"
+        @move-up="() => handleMoveElement('up')"
+        @move-down="() => handleMoveElement('down')"
+      />
     </div>
 
 
     <div class="right-panel">
       <Alignment @align="handleAlignment" />
-      <ColorPalette />
+      <TextColorPicker 
+        :selected-element="selectedElement"
+        @update="handleElementUpdate"
+      />
+      <TextProperties
+        :selected-element="selectedElement"
+        @update="handleElementUpdate"
+      />
+      <ColorPalette 
+        :selected-element="selectedElement"
+        @update="handleElementUpdate"
+      />
       <Properties 
         :selected-element="selectedElement"
         @update="handleElementUpdate"
@@ -288,7 +417,7 @@ const downloadAsPDF = async () => {
 .editor-container {
   display: grid;
   grid-template-columns: 450px 1fr 300px;
-  height: 100vh;
+  height: 90vh;
   background-color: #F5F5F5;
 }
 
@@ -370,7 +499,7 @@ const downloadAsPDF = async () => {
   border-radius: 8px;
   background-color: transparent;
   font-size: inherit;
-  color: #333;
+  color: inherit;
   cursor: text;
   position: relative;
 }
@@ -402,7 +531,7 @@ const downloadAsPDF = async () => {
 .shape-element {
   width: 100%;
   height: 100%;
-  background-color: #F37021;
+  background-color: inherit;
   border-radius: 10px;
 }
 
@@ -444,6 +573,11 @@ input[type="number"]:focus {
   border-color: #2196F3;
 }
 
-
+.instagram-text,
+.hashtag,
+.mention,
+.link {
+  display: none;
+}
 
 </style>

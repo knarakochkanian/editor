@@ -1,28 +1,74 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+
+const props = defineProps({
+  selectedElement: {
+    type: Object,
+    default: null
+  }
+})
+
+const emit = defineEmits(['update'])
 
 const selectedColor = ref('#000000')
+const backgroundColor = ref('#FFFFFF')
 const gradientType = ref('linear')
-const gradientAngle = ref(0)
-const gradientColors = ref(['#ff0000', '#00ff00'])
-
-const predefinedPalettes = {
-  pastel: ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFE4BA'],
-  contrast: ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF'],
-  summer: ['#FFD700', '#FF69B4', '#98FB98', '#87CEEB', '#FFA07A'],
-  winter: ['#F0F8FF', '#E6E6FA', '#B0E0E6', '#DDA0DD', '#B0C4DE']
-}
+const gradientColors = ref(['#ffffff', '#000000'])
 
 const gradientTypes = [
   { value: 'linear', label: 'Linear' },
-  { value: 'radial', label: 'Radial' },
-  { value: 'angular', label: 'Angular' },
-  { value: 'mirrored', label: 'Mirrored' }
+  { value: 'radial', label: 'Radial' }
 ]
 
-const updateGradient = () => {
-  const gradient = `${gradientType.value}-gradient(${gradientAngle.value}deg, ${gradientColors.value.join(', ')})`
-  return gradient
+const predefinedPalettes = {
+  basic: ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF'],
+  warm: ['#FF9900', '#FF6600', '#FF3300', '#CC0000', '#990000'],
+  cool: ['#00CCFF', '#0099FF', '#0066FF', '#0033FF', '#0000CC']
+}
+
+watch(
+  () => props.selectedElement,
+  (newVal) => {
+    if (newVal?.style) {
+      // For text elements, track text color
+      if (newVal.type === 'text' && newVal.style.color) {
+        selectedColor.value = newVal.style.color
+      }
+      // For all elements, track background color
+      if (newVal.type === 'text') {
+        backgroundColor.value = newVal.style.backgroundColor || 'transparent'
+      } else if (newVal.type === 'rectangle' || newVal.type === 'circle' || newVal.type === 'triangle' || newVal.type === 'star' || newVal.type === 'heart') {
+        backgroundColor.value = newVal.style.backgroundColor || '#F37021'
+      }
+    }
+  },
+  { immediate: true }
+)
+
+const handleColorChange = (color) => {
+  selectedColor.value = color
+  if (props.selectedElement?.type === 'text') {
+    emit('update', {
+      ...props.selectedElement,
+      style: {
+        ...props.selectedElement.style,
+        color: color
+      }
+    })
+  }
+}
+
+const handleBackgroundColorChange = (color) => {
+  backgroundColor.value = color
+  if (props.selectedElement) {
+    emit('update', {
+      ...props.selectedElement,
+      style: {
+        ...props.selectedElement.style,
+        backgroundColor: color
+      }
+    })
+  }
 }
 
 const addGradientColor = () => {
@@ -30,24 +76,49 @@ const addGradientColor = () => {
 }
 
 const removeGradientColor = (index) => {
-  if (gradientColors.value.length > 2) {
-    gradientColors.value.splice(index, 1)
+  gradientColors.value.splice(index, 1)
+}
+
+const updateGradient = () => {
+  const colors = gradientColors.value.join(', ')
+  if (gradientType.value === 'linear') {
+    return `linear-gradient(90deg, ${colors})`
+  } else {
+    return `radial-gradient(circle, ${colors})`
   }
 }
 </script>
 
 <template>
-  <div class="color-palette">
-    <div class="section">
-      <h4>Solid Color</h4>
+  <div class="color-palette" v-if="selectedElement">
+    <div class="section" v-if="selectedElement.type === 'text'">
+      <h4>Цвет текста</h4>
       <div class="color-picker">
-        <input type="color" v-model="selectedColor">
-        <input type="text" v-model="selectedColor" class="color-code">
+        <input type="color" v-model="selectedColor" @change="handleColorChange(selectedColor)">
+        <input 
+          type="text" 
+          v-model="selectedColor" 
+          class="color-code"
+          @change="handleColorChange(selectedColor)"
+        >
       </div>
     </div>
 
     <div class="section">
-      <h4>Gradient</h4>
+      <h4>Цвет фона</h4>
+      <div class="color-picker">
+        <input type="color" v-model="backgroundColor" @change="handleBackgroundColorChange(backgroundColor)">
+        <input 
+          type="text" 
+          v-model="backgroundColor" 
+          class="color-code"
+          @change="handleBackgroundColorChange(backgroundColor)"
+        >
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Градиент</h4>
       <div class="gradient-controls">
         <select v-model="gradientType">
           <option v-for="type in gradientTypes" :key="type.value" :value="type.value">
@@ -68,7 +139,7 @@ const removeGradientColor = (index) => {
     </div>
 
     <div class="section">
-      <h4>Predefined Palettes</h4>
+      <h4>Готовые цвета</h4>
       <div class="palettes">
         <div v-for="(colors, name) in predefinedPalettes" :key="name" class="palette">
           <h5>{{ name }}</h5>
@@ -78,7 +149,7 @@ const removeGradientColor = (index) => {
               :key="color"
               class="palette-color"
               :style="{ backgroundColor: color }"
-              @click="selectedColor = color"
+              @click="handleBackgroundColorChange(color)"
             ></div>
           </div>
         </div>
@@ -99,6 +170,8 @@ const removeGradientColor = (index) => {
 .section h4 {
   margin-bottom: 0.5rem;
   color: #333;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .color-picker {
@@ -182,5 +255,12 @@ input[type="color"] {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+}
+
+select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
 }
 </style> 

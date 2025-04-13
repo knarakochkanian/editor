@@ -4,9 +4,9 @@ import Background from "@/components/Background.vue";
 import AI from "@/components/AI.vue";
 import Photo from "@/components/Photo.vue";
 import TextEditor from "@/components/TextEditor.vue";
-import elements from "@/components/Elements.vue";
 
-const emit = defineEmits(['add-element'])
+
+const emit = defineEmits(['add-element', 'update-element'])
 
 const shapes = [
   { id: 'rectangle',  icon: '⬜' },
@@ -54,18 +54,22 @@ const handleFileUpload = (event) => {
   }
 }
 const selectedElement = ref(null)
-const handleCreateTextBlock = ({ fontFamily, fontSize  }) => {
+
+const handleCreateTextBlock = ({ fontFamily, fontSize, className }) => {
   const newElement = {
     id: Date.now(),
     type: 'text',
     content: 'Введите текст',
     style: {
-      fontFamily,  fontSize: fontSize
+      fontFamily,
+      fontSize,
+      color: '#000000'
     },
+    class: className,
     x: 100,
     y: 100,
     width: 250,
-    height: 60,
+    height: 100,
     rotation: 0,
     opacity: 100,
     isNew: true,
@@ -74,30 +78,21 @@ const handleCreateTextBlock = ({ fontFamily, fontSize  }) => {
   emit('add-element', newElement)
   selectedElement.value = newElement
 }
+
 const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
   if (!selectedElement.value) return
-
+  
+  // Update the style properties
   selectedElement.value.style = {
     ...selectedElement.value.style,
     fontFamily,
     fontSize
   }
+  selectedElement.value.class = className
 
-  const headingClasses = ['heading-1', 'heading-2', 'heading-3']
-  const otherClasses = (selectedElement.value.class || '')
-      .split(' ')
-      .filter(c => !headingClasses.includes(c))
-      .join(' ')
-
-  selectedElement.value.class = `${otherClasses} ${className}`.trim()
-
-  const index = elements.value.findIndex(el => el.id === selectedElement.value.id)
-  if (index !== -1) {
-    elements.value[index] = { ...selectedElement.value }
-  }
+  // Emit the updated element to the parent
+  emit('update-element', { ...selectedElement.value })
 }
-
-
 
 </script>
 
@@ -313,6 +308,5 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
 .upload-icon {
   font-size: 2rem;
 }
-
 
 </style>

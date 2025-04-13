@@ -78,7 +78,7 @@ const emitTextBlock = () => {
   emit('create-text-block', {
     fontFamily: selectedFont.value,
     fontSize: heading?.fontSize || '24px',
-    className: `heading-${selectedHeading.value.toLowerCase()}`
+    className: `heading-h${selectedHeading.value.slice(1)}`
   })
 }
 
@@ -86,14 +86,20 @@ watch(
     () => props.modelValue,
     (newVal) => {
       if (!newVal) return
+      
+      // Update selected font from the element's style
       selectedFont.value = newVal.style?.fontFamily || fontFamilies[0]
-
-      const found = headingLevels.find(h =>
-          newVal.class?.includes(`heading-${h.label.toLowerCase()}`)
-      )
-      selectedHeading.value = found?.label || headingLevels[0].label
+      
+      // Extract heading level from class name
+      const headingMatch = newVal.class?.match(/heading-h(\d)/i)
+      if (headingMatch) {
+        const level = headingMatch[1]
+        selectedHeading.value = `H${level}`
+      } else {
+        selectedHeading.value = headingLevels[0].label
+      }
     },
-    {immediate: true}
+    { immediate: true }
 )
 
 watch([selectedFont, selectedHeading], () => {
@@ -101,7 +107,7 @@ watch([selectedFont, selectedHeading], () => {
   emit('update-text-style', {
     fontFamily: selectedFont.value,
     fontSize: heading?.fontSize || '24px',
-    className: `heading-${selectedHeading.value.toLowerCase()}`
+    className: `heading-h${selectedHeading.value.slice(1)}`
   })
 })
 </script>
