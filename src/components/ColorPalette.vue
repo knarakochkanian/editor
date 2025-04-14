@@ -1,6 +1,8 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { useElementStore } from '../stores/elementStore'
 
+const store = useElementStore()
 const props = defineProps({
   selectedElement: {
     type: Object,
@@ -12,13 +14,8 @@ const emit = defineEmits(['update'])
 
 const selectedColor = ref('#000000')
 const backgroundColor = ref('#FFFFFF')
-const gradientType = ref('linear')
-const gradientColors = ref(['#ffffff', '#000000'])
-
-const gradientTypes = [
-  { value: 'linear', label: 'Linear' },
-  { value: 'radial', label: 'Radial' }
-]
+const lineHeight = ref(1.5)
+const letterSpacing = ref(0)
 
 const predefinedPalettes = {
   basic: ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF'],
@@ -30,14 +27,15 @@ watch(
   () => props.selectedElement,
   (newVal) => {
     if (newVal?.style) {
-      // For text elements, track text color
-      if (newVal.type === 'text' && newVal.style.color) {
-        selectedColor.value = newVal.style.color
-      }
-      // For all elements, track background color
+      // For text elements, track text color and spacing
       if (newVal.type === 'text') {
+        selectedColor.value = newVal.style.color || '#000000'
         backgroundColor.value = newVal.style.backgroundColor || 'transparent'
-      } else if (newVal.type === 'rectangle' || newVal.type === 'circle' || newVal.type === 'triangle' || newVal.type === 'star' || newVal.type === 'heart') {
+        lineHeight.value = parseFloat(newVal.style.lineHeight) || 1.5
+        letterSpacing.value = parseFloat(newVal.style.letterSpacing) || 0
+      }
+      // For shape elements, track background color
+      else if (newVal.type === 'rectangle' || newVal.type === 'circle' || newVal.type === 'triangle' || newVal.type === 'star' || newVal.type === 'heart') {
         backgroundColor.value = newVal.style.backgroundColor || '#F37021'
       }
     }
@@ -48,11 +46,12 @@ watch(
 const handleColorChange = (color) => {
   selectedColor.value = color
   if (props.selectedElement?.type === 'text') {
-    emit('update', {
+    store.updateTextStyle({ color })
+    store.updateElement({
       ...props.selectedElement,
       style: {
         ...props.selectedElement.style,
-        color: color
+        color
       }
     })
   }
@@ -61,30 +60,46 @@ const handleColorChange = (color) => {
 const handleBackgroundColorChange = (color) => {
   backgroundColor.value = color
   if (props.selectedElement) {
-    emit('update', {
+    store.updateTextStyle({ 
+      backgroundColor: color,
+      background: color
+    })
+    store.updateElement({
       ...props.selectedElement,
       style: {
         ...props.selectedElement.style,
-        backgroundColor: color
+        backgroundColor: color,
+        background: color
       }
     })
   }
 }
 
-const addGradientColor = () => {
-  gradientColors.value.push('#000000')
+const handleLineHeightChange = (value) => {
+  lineHeight.value = value
+  if (props.selectedElement?.type === 'text') {
+    store.updateTextStyle({ lineHeight: value })
+    store.updateElement({
+      ...props.selectedElement,
+      style: {
+        ...props.selectedElement.style,
+        lineHeight: value
+      }
+    })
+  }
 }
 
-const removeGradientColor = (index) => {
-  gradientColors.value.splice(index, 1)
-}
-
-const updateGradient = () => {
-  const colors = gradientColors.value.join(', ')
-  if (gradientType.value === 'linear') {
-    return `linear-gradient(90deg, ${colors})`
-  } else {
-    return `radial-gradient(circle, ${colors})`
+const handleLetterSpacingChange = (value) => {
+  letterSpacing.value = value
+  if (props.selectedElement?.type === 'text') {
+    store.updateTextStyle({ letterSpacing: `${value}px` })
+    store.updateElement({
+      ...props.selectedElement,
+      style: {
+        ...props.selectedElement.style,
+        letterSpacing: `${value}px`
+      }
+    })
   }
 }
 </script>
@@ -104,37 +119,33 @@ const updateGradient = () => {
       </div>
     </div>
 
-    <div class="section">
-      <h4>Цвет фона</h4>
-      <div class="color-picker">
-        <input type="color" v-model="backgroundColor" @change="handleBackgroundColorChange(backgroundColor)">
+    <div class="section" v-if="selectedElement.type === 'text'">
+      <h4>Межстрочный интервал</h4>
+      <div class="range-control">
         <input 
-          type="text" 
-          v-model="backgroundColor" 
-          class="color-code"
-          @change="handleBackgroundColorChange(backgroundColor)"
+          type="range" 
+          v-model="lineHeight" 
+          min="0.5" 
+          max="3" 
+          step="0.1"
+          @input="handleLineHeightChange(lineHeight)"
         >
+        <span class="range-value">{{ lineHeight }}</span>
       </div>
     </div>
 
-    <div class="section">
-      <h4>Градиент</h4>
-      <div class="gradient-controls">
-        <select v-model="gradientType">
-          <option v-for="type in gradientTypes" :key="type.value" :value="type.value">
-            {{ type.label }}
-          </option>
-        </select>
-        
-        <div class="gradient-colors">
-          <div v-for="(color, index) in gradientColors" :key="index" class="gradient-color">
-            <input type="color" v-model="gradientColors[index]">
-            <button @click="removeGradientColor(index)" :disabled="gradientColors.length <= 2">×</button>
-          </div>
-          <button @click="addGradientColor">+</button>
-        </div>
-
-        <div class="gradient-preview" :style="{ background: updateGradient() }"></div>
+    <div class="section" v-if="selectedElement.type === 'text'">
+      <h4>Интервал между символами</h4>
+      <div class="range-control">
+        <input 
+          type="range" 
+          v-model="letterSpacing" 
+          min="-5" 
+          max="20" 
+          step="1"
+          @input="handleLetterSpacingChange(letterSpacing)"
+        >
+        <span class="range-value">{{ letterSpacing }}px</span>
       </div>
     </div>
 
@@ -187,30 +198,6 @@ const updateGradient = () => {
   border-radius: 4px;
 }
 
-.gradient-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.gradient-colors {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.gradient-color {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.gradient-preview {
-  height: 40px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-}
-
 .palettes {
   display: flex;
   flex-direction: column;
@@ -235,19 +222,6 @@ const updateGradient = () => {
   border: 1px solid #ddd;
 }
 
-button {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: white;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 input[type="color"] {
   width: 40px;
   height: 40px;
@@ -257,10 +231,34 @@ input[type="color"] {
   cursor: pointer;
 }
 
-select {
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: white;
+.range-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.range-control input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: #ddd;
+  border-radius: 2px;
+  outline: none;
+}
+
+.range-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #F37021;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.range-value {
+  min-width: 40px;
+  text-align: right;
+  font-size: 14px;
+  color: #666;
 }
 </style> 

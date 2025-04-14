@@ -8,9 +8,10 @@ import TextColorPicker from './components/TextColorPicker.vue'
 import TextProperties from './components/TextProperties.vue'
 import Header from "@/components/Header.vue";
 import ElementControls from './components/ElementControls.vue'
+import { useElementStore } from './stores/elementStore'
 
+const store = useElementStore()
 const backgroundImage = ref(null)
-
 
 const handleSetBackground = (url) => {
   backgroundImage.value = url
@@ -22,57 +23,13 @@ const canvasSize = ref({
 })
 
 const orientation = ref('landscape')
-const selectedElement = ref(null)
-const elements = ref([])
-
 
 const handleAddElement = (element) => {
-  const isText = element.type === 'text' || element.id === 'text'
-
-  const newElement = {
-    id: Date.now(),
-    type: element.type || element.id,
-    content: isText ? '' : '',
-    style: element.style || '',
-    x: 50,
-    y: 50,
-    width: 200,
-    height: 100,
-    rotation: 0,
-    opacity: 100,
-    isNew: isText,
-    ...element
-  }
-
-  // Parse style string into object if it's a string
-  if (typeof newElement.style === 'string') {
-    const styleObj = {}
-    newElement.style.split(';').forEach(style => {
-      if (style.trim()) {
-        const [key, value] = style.split(':').map(s => s.trim())
-        styleObj[key.replace(/-([a-z])/g, g => g[1].toUpperCase())] = value
-      }
-    })
-    newElement.style = styleObj
-  }
-
-  elements.value.push(newElement)
-  selectedElement.value = newElement
-
-  // Automatically focus the text input if it's a new text element
-  if (isText) {
-    setTimeout(() => {
-      const textInput = document.querySelector('.text-input')
-      if (textInput) {
-        textInput.focus()
-        textInput.value = ''  // Очищаем значение поля ввода
-      }
-    }, 100)
-  }
+  store.addElement(element)
 }
 
 const handleElementSelect = (element) => {
-  selectedElement.value = element
+  store.setSelectedElement(element)
 }
 
 const handleTextEdit = (event, element) => {
@@ -80,25 +37,29 @@ const handleTextEdit = (event, element) => {
     element.content = ''
   } else {
     element.content = event.target.value
+    // Auto-adjust height based on content
+    const textarea = event.target
+    const lines = element.content.split('\n').length
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20
+    const newHeight = Math.max(100, lines * lineHeight + 24) // 24px for padding
+    element.height = newHeight
+    store.updateElement(element)
   }
 }
 
 const handleTextClick = (event, element) => {
   event.stopPropagation()
-  selectedElement.value = element
+  store.setSelectedElement(element)
 }
 
 const handleElementUpdate = (updatedElement) => {
-  const index = elements.value.findIndex(el => el.id === updatedElement.id)
-  if (index !== -1) {
-    elements.value[index] = updatedElement
-  }
+  store.updateElement(updatedElement)
 }
 
 const handleAlignment = (alignment) => {
-  if (!selectedElement.value) return
+  if (!store.selectedElement) return
   
-  const element = selectedElement.value
+  const element = store.selectedElement
   const contentArea = document.querySelector('.content-area')
   const contentRect = contentArea.getBoundingClientRect()
   
@@ -147,29 +108,25 @@ const handleAlignment = (alignment) => {
   }
 
   // Update the element in the elements array
-  const index = elements.value.findIndex(el => el.id === element.id)
+  const index = store.elements.findIndex(el => el.id === element.id)
   if (index !== -1) {
-    elements.value[index] = { ...element }
+    store.elements[index] = { ...element }
   }
 }
-
 
 const handleSchedulePost = () => {
   console.log('Scheduling post')
 }
 
 const handleDownload = () => {
-
   const layoutData = {
     size: canvasSize.value,
     orientation: orientation.value,
-    elements: elements.value
+    elements: store.elements
   }
   
-
   const jsonString = JSON.stringify(layoutData, null, 2)
   
-
   const blob = new Blob([jsonString], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -179,16 +136,6 @@ const handleDownload = () => {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-}
-
-const handleUndo = () => {
-
-  console.log('Undoing last action')
-}
-
-const handleRedo = () => {
-
-  console.log('Redoing last action')
 }
 
 const startDrag = (event, element) => {
@@ -208,6 +155,7 @@ const startDrag = (event, element) => {
   document.addEventListener('mousemove', drag)
   document.addEventListener('mouseup', stopDrag)
 }
+
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
@@ -233,47 +181,47 @@ const downloadAsPDF = async () => {
 }
 
 const handleCopyElement = () => {
-  if (!selectedElement.value) return
+  if (!store.selectedElement) return
 
   const newElement = {
-    ...selectedElement.value,
+    ...store.selectedElement,
     id: Date.now(),
-    x: selectedElement.value.x + 20,
-    y: selectedElement.value.y + 20
+    x: store.selectedElement.x + 20,
+    y: store.selectedElement.y + 20
   }
-  elements.value.push(newElement)
-  selectedElement.value = newElement
+  store.addElement(newElement)
+  store.setSelectedElement(newElement)
 }
 
 const handleDeleteElement = () => {
-  if (!selectedElement.value) return
+  if (!store.selectedElement) return
 
-  const index = elements.value.findIndex(el => el.id === selectedElement.value.id)
+  const index = store.elements.findIndex(el => el.id === store.selectedElement.id)
   if (index !== -1) {
-    elements.value.splice(index, 1)
-    selectedElement.value = null
+    store.elements.splice(index, 1)
+    store.setSelectedElement(null)
   }
 }
 
 const handleMoveElement = (direction) => {
-  if (!selectedElement.value) return
+  if (!store.selectedElement) return
 
-  const index = elements.value.findIndex(el => el.id === selectedElement.value.id)
+  const index = store.elements.findIndex(el => el.id === store.selectedElement.id)
   if (index === -1) return
 
-  if (direction === 'up' && index < elements.value.length - 1) {
+  if (direction === 'up' && index < store.elements.length - 1) {
     // Move element up in z-index (swap with the next element)
-    [elements.value[index], elements.value[index + 1]] = [elements.value[index + 1], elements.value[index]]
+    [store.elements[index], store.elements[index + 1]] = [store.elements[index + 1], store.elements[index]]
   } else if (direction === 'down' && index > 0) {
     // Move element down in z-index (swap with the previous element)
-    [elements.value[index], elements.value[index - 1]] = [elements.value[index - 1], elements.value[index]]
+    [store.elements[index], store.elements[index - 1]] = [store.elements[index - 1], store.elements[index]]
   }
 }
 
 const handleKeyDown = (event) => {
-  if (!selectedElement.value) return
+  if (!store.selectedElement) return
 
-  if (selectedElement.value.type === 'text' && event.target.tagName.toLowerCase() === 'input') {
+  if (store.selectedElement.type === 'text' && event.target.tagName.toLowerCase() === 'input') {
     return
   }
 
@@ -281,26 +229,26 @@ const handleKeyDown = (event) => {
 
   switch (event.key) {
     case 'ArrowLeft':
-      selectedElement.value.x -= step
+      store.selectedElement.x -= step
       event.preventDefault()
       break
     case 'ArrowRight':
-      selectedElement.value.x += step
+      store.selectedElement.x += step
       event.preventDefault()
       break
     case 'ArrowUp':
-      selectedElement.value.y -= step
+      store.selectedElement.y -= step
       event.preventDefault()
       break
     case 'ArrowDown':
-      selectedElement.value.y += step
+      store.selectedElement.y += step
       event.preventDefault()
       break
   }
 
-  const index = elements.value.findIndex(el => el.id === selectedElement.value.id)
+  const index = store.elements.findIndex(el => el.id === store.selectedElement.id)
   if (index !== -1) {
-    elements.value[index] = { ...selectedElement.value }
+    store.elements[index] = { ...store.selectedElement }
   }
 }
 
@@ -325,22 +273,22 @@ onUnmounted(() => {
       <div
           class="content-area"
           :style="{
-    width: canvasSize.width + 'px',
-    height: canvasSize.height + 'px',
-    backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center'
-  }"
+            width: canvasSize.width + 'px',
+            height: canvasSize.height + 'px',
+            backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }"
       >
-        <div v-if="elements.length === 0" class="placeholder-content">
+        <div v-if="store.elements.length === 0" class="placeholder-content">
           <h2>Область содержимого</h2>
           <p>Добавьте элементы с левой панели, чтобы начать создавать свой дизайн</p>
         </div>
         <div
-          v-for="element in elements"
+          v-for="element in store.elements"
           :key="element.id"
           class="content-element"
-          :class="['content-element', element.class, { selected: selectedElement?.id === element.id }]"
+          :class="['content-element', element.class, { selected: store.selectedElement?.id === element.id }]"
           :style="{
             position: 'absolute',
             left: element.x + 'px',
@@ -357,7 +305,7 @@ onUnmounted(() => {
 
           <div v-if="element.type === 'text'" class="text-element" @click="handleTextClick($event, element)">
             <input
-              v-if="selectedElement?.id === element.id"
+              v-if="store.selectedElement?.id === element.id"
               type="text"
               v-model="element.content"
               ref="textInput"
@@ -382,32 +330,31 @@ onUnmounted(() => {
       </div>
       
       <ElementControls
-        v-if="selectedElement"
+        v-if="store.selectedElement"
         @copy="handleCopyElement"
-        @delete="handleDeleteElement"
+        @delete="() => store.deleteElement(store.selectedElement.id)"
         @move-up="() => handleMoveElement('up')"
         @move-down="() => handleMoveElement('down')"
       />
     </div>
 
-
     <div class="right-panel">
       <Alignment @align="handleAlignment" />
       <TextColorPicker 
-        :selected-element="selectedElement"
-        @update="handleElementUpdate"
+        :selected-element="store.selectedElement"
+        @update="store.updateElement"
       />
       <TextProperties
-        :selected-element="selectedElement"
-        @update="handleElementUpdate"
+        :selected-element="store.selectedElement"
+        @update="store.updateElement"
       />
       <ColorPalette 
-        :selected-element="selectedElement"
-        @update="handleElementUpdate"
+        :selected-element="store.selectedElement"
+        @update="store.updateElement"
       />
       <Properties 
-        :selected-element="selectedElement"
-        @update="handleElementUpdate"
+        :selected-element="store.selectedElement"
+        @update="store.updateElement"
       />
     </div>
   </div>
@@ -571,13 +518,6 @@ input[type="number"] {
 input[type="number"]:focus {
   outline: none;
   border-color: #2196F3;
-}
-
-.instagram-text,
-.hashtag,
-.mention,
-.link {
-  display: none;
 }
 
 </style>

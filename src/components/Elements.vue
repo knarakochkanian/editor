@@ -30,13 +30,34 @@ const instagramStickers = [
 
 const activeTab = ref('shapes')
 
-const addElement = (element) => {
-  const elementToAdd = {
-    ...element,
-    type: element.type || element.id,
-    content: element.content || element.text || 'Click to edit text'
+const addElement = (type) => {
+  const element = {
+    id: Date.now(),
+    type,
+    content: '',
+    style: {
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '200px',
+      height: '200px',
+      backgroundColor: '#F37021',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'move',
+      userSelect: 'none',
+      borderRadius: type === 'circle' ? '50%' : '0',
+      clipPath: type === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' :
+                type === 'heart' ? 'path("M 100,100 C 100,50 150,0 200,50 C 250,0 300,50 300,100 C 300,150 200,200 200,200 C 200,200 100,150 100,100 Z")' :
+                type === 'star' ? 'path("M 100,0 L 123,75 L 200,75 L 138,120 L 161,195 L 100,150 L 39,195 L 62,120 L 0,75 L 77,75 Z")' : 'none',
+      WebkitClipPath: type === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' :
+                      type === 'heart' ? 'path("M 100,100 C 100,50 150,0 200,50 C 250,0 300,50 300,100 C 300,150 200,200 200,200 C 200,200 100,150 100,100 Z")' :
+                      type === 'star' ? 'path("M 100,0 L 123,75 L 200,75 L 138,120 L 161,195 L 100,150 L 39,195 L 62,120 L 0,75 L 77,75 Z")' : 'none'
+    }
   }
-  emit('add-element', elementToAdd)
+  emit('add-element', element)
 }
 
 const handleFileUpload = (event) => {
@@ -115,7 +136,7 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
           v-for="shape in shapes"
           :key="shape.id"
           class="element-btn"
-          @click="addElement(shape)"
+          @click="addElement(shape.id)"
         >
           <span class="element-icon">{{ shape.icon }}</span>
         </button>
@@ -132,7 +153,7 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
           v-for="sticker in stickers"
           :key="index"
           class="element-btn"
-          @click="addElement(sticker)"
+          @click="addElement(sticker.id)"
         >
           <img :src="sticker.url" :alt="sticker.name" class="sticker-preview">
         </button>
@@ -144,7 +165,7 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
           v-for="sticker in instagramStickers"
           :key="sticker.id"
           class="element-btn"
-          @click="addElement(sticker)"
+          @click="addElement(sticker.id)"
         >
           <span class="element-icon">{{ sticker.icon }}</span>
           <span class="element-name">{{ sticker.name }}</span>
