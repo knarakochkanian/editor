@@ -316,7 +316,6 @@ onUnmounted(() => {
             />
             <span v-else>{{ element.content }}</span>
           </div>
-          
 
           <div v-else-if="element.type === 'rectangle'" class="shape-element rectangle"></div>
           <div v-else-if="element.type === 'circle'" class="shape-element circle"></div>
@@ -372,7 +371,7 @@ onUnmounted(() => {
   background-color: white;
   border-right: 1px solid #E0E0E0;
   overflow-y: auto;
-  padding: 20px;
+  padding-left: 20px;
 }
 
 .right-panel {
