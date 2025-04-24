@@ -8,6 +8,7 @@ import TextColorPicker from './components/TextColorPicker.vue'
 import TextProperties from './components/TextProperties.vue'
 import Header from "@/components/Header.vue";
 import ElementControls from './components/ElementControls.vue'
+import CanvasResize from './components/CanvasResize.vue'
 import { useElementStore } from './stores/elementStore'
 
 const store = useElementStore()
@@ -37,11 +38,10 @@ const handleTextEdit = (event, element) => {
     element.content = ''
   } else {
     element.content = event.target.value
-    // Auto-adjust height based on content
     const textarea = event.target
     const lines = element.content.split('\n').length
     const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20
-    const newHeight = Math.max(100, lines * lineHeight + 24) // 24px for padding
+    const newHeight = Math.max(100, lines * lineHeight + 24)
     element.height = newHeight
     store.updateElement(element)
   }
@@ -59,14 +59,14 @@ const handleElementUpdate = (updatedElement) => {
 const handleAlignment = (alignment) => {
   if (!store.selectedElement) return
   
-  const element = store.selectedElement
+  const element = { ...store.selectedElement }
   const contentArea = document.querySelector('.content-area')
   const contentRect = contentArea.getBoundingClientRect()
   
-  // Calculate available space (content area dimensions minus padding)
-  const padding = 24 // padding from CSS
-  const availableWidth = contentArea.clientWidth - (padding * 2)
-  const availableHeight = contentArea.clientHeight - (padding * 2)
+
+  const padding = 24
+  const availableWidth = contentRect.width - (padding * 2)
+  const availableHeight = contentRect.height - (padding * 2)
   
   switch (alignment) {
     case 'top-left':
@@ -107,11 +107,7 @@ const handleAlignment = (alignment) => {
       break
   }
 
-  // Update the element in the elements array
-  const index = store.elements.findIndex(el => el.id === element.id)
-  if (index !== -1) {
-    store.elements[index] = { ...element }
-  }
+  store.updateElement(element)
 }
 
 const handleSchedulePost = () => {
@@ -157,11 +153,9 @@ const startDrag = (event, element) => {
 }
 
 import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
 
-const downloadAsPDF = async () => {
+const downloadAsPNG = async () => {
   const content = document.querySelector('.content-area')
-
   if (!content) return
 
   const canvas = await html2canvas(content, {
@@ -170,15 +164,15 @@ const downloadAsPDF = async () => {
   })
 
   const imgData = canvas.toDataURL('image/png')
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'px',
-    format: [canvas.width, canvas.height]
-  })
 
-  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
-  pdf.save('layout.pdf')
+  const a = document.createElement('a')
+  a.href = imgData
+  a.download = 'layout.png'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
+
 
 const handleCopyElement = () => {
   if (!store.selectedElement) return
@@ -252,6 +246,35 @@ const handleKeyDown = (event) => {
   }
 }
 
+const handleCanvasResize = ({ width, height, isProportional }) => {
+  const scaleX = width / canvasSize.value.width
+  const scaleY = height / canvasSize.value.height
+
+  // Ensure we're working with integers
+  const newWidth = parseInt(width)
+  const newHeight = parseInt(height)
+
+  console.log('Resizing canvas to:', { width: newWidth, height: newHeight })
+
+  canvasSize.value = {
+    width: newWidth,
+    height: newHeight
+  }
+  
+  if (isProportional) {
+    store.elements.forEach(element => {
+      const updatedElement = {
+        ...element,
+        x: Math.round(element.x * scaleX),
+        y: Math.round(element.y * scaleY),
+        width: Math.round(element.width * scaleX),
+        height: Math.round(element.height * scaleY)
+      }
+      store.updateElement(updatedElement)
+    })
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown)
 })
@@ -263,13 +286,62 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Header @download-pdf="downloadAsPDF" />
+  <Header @download-pdf="downloadAsPNG" />
   <div class="editor-container">
     <div class="left-panel">
-      <Elements @add-element="handleAddElement" @set-background="handleSetBackground" />
+      <Elements 
+        @add-element="handleAddElement" 
+        @set-background="handleSetBackground"
+        @resize-canvas="handleCanvasResize"
+      />
     </div>
 
     <div class="main-content">
+      <div class="layout-pixta-desktop-header">
+        <div class="layout-pixta-desktop-header__rotate">
+          <div class="flex gap-xxxs">
+            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="rotateLeft">
+            <span class="button__wrapper">
+              <span class="button__ico">
+                <svg><use xlink:href="#ico-rotate-left"></use></svg>
+              </span>
+            </span>
+            </button>
+            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="rotateRight">
+            <span class="button__wrapper">
+              <span class="button__ico">
+                <svg><use xlink:href="#ico-rotate-right"></use></svg>
+              </span>
+            </span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center">
+          <div class="text-sm text-right" style="min-width: 3em;">
+            {{ scale }}%
+          </div>
+          <div class="flex-1" style="margin: 0 0.8em;">
+            <input
+                type="range"
+                v-model="scale"
+                min="5"
+                max="300"
+                class="slider"
+                @input="handleScaleChange"
+            >
+          </div>
+          <div>
+            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="fitToScreen">
+            <span class="button__wrapper">
+              <span class="button__ico">
+                <svg><use xlink:href="#ico-fit-to-screen"></use></svg>
+              </span>
+            </span>
+            </button>
+          </div>
+        </div>
+      </div>
       <div
           class="content-area"
           :style="{
@@ -277,7 +349,8 @@ onUnmounted(() => {
             height: canvasSize.height + 'px',
             backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
             backgroundSize: 'cover',
-            backgroundPosition: 'center'
+            backgroundPosition: 'center',
+            transition: 'width 0.3s, height 0.3s'
           }"
       >
         <div v-if="store.elements.length === 0" class="placeholder-content">
@@ -363,7 +436,6 @@ onUnmounted(() => {
 .editor-container {
   display: grid;
   grid-template-columns: 450px 1fr 300px;
-  height: 90vh;
   background-color: #F5F5F5;
 }
 
@@ -380,8 +452,6 @@ onUnmounted(() => {
 }
 
 .main-content {
-  display: flex;
-  flex-direction: column;
   padding: 20px;
   background-color: #F5F5F5;
 }
@@ -401,6 +471,7 @@ onUnmounted(() => {
   overflow: hidden;
   margin: 0 auto;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: width 0.3s, height 0.3s;
 }
 
 .placeholder-content {
@@ -519,4 +590,79 @@ input[type="number"]:focus {
   border-color: #2196F3;
 }
 
+.layout-pixta-desktop-header {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.button__wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.button__ico {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button__ico svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.slider {
+  width: 100%;
+  height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #F37021;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #F37021;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
 </style>

@@ -18,6 +18,7 @@ const selectBackground = (url) => {
     <h2>
       Фото
     </h2>
+    <input type="text" placeholder="Поиск" class="search" />
     <div class="grid">
       <div
           v-for="bg in backgrounds"

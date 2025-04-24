@@ -70,5 +70,14 @@ const handleAlignment = (option) => {
   border: unset;
 }
 
+.alignment-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #d0d0d0;
+}
 
+.alignment-btn img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
 </style> 

@@ -4,9 +4,10 @@ import Background from "@/components/Background.vue";
 import AI from "@/components/AI.vue";
 import Photo from "@/components/Photo.vue";
 import TextEditor from "@/components/TextEditor.vue";
+import CanvasResize from "@/components/CanvasResize.vue"
 
 
-const emit = defineEmits(['add-element', 'update-element'])
+const emit = defineEmits(['add-element', 'set-background', 'resize-canvas'])
 
 const shapes = [
   { id: 'shape1', url: 'https://ycs-media.postmypost.io/r/150x600/pixta-assets/shape/001.png' },
@@ -81,24 +82,6 @@ const stickers = [
   { id: 'sticker10', url: 'https://ycs-media.postmypost.io/r/150x600/pixta-assets/social-network-sticker/social-vkontakte-story-repost.png' }
 ]
 
-const instagramStickers = [
-  { id: 'link', icon: '🔗', color: '#0095f6' },
-  { id: 'mention', icon: '@', color: '#8e3ea4' },
-  { id: 'hashtag', icon: '#', color: '#ed4956' },
-  { id: 'location', icon: '📍', color: '#4caf50' },
-  { id: 'music', icon: '🎵', color: '#ff9800' },
-  { id: 'poll', icon: '📊', color: '#2196f3' },
-  { id: 'question', icon: '❓', color: '#9c27b0' },
-  { id: 'countdown', icon: '⏳', color: '#f44336' },
-  { id: 'quiz', icon: '🎯', color: '#00bcd4' },
-  { id: 'slider', icon: '🎚️', color: '#ff5722' }
-]
-
-const templates = [
-  { id: 'template1', preview: '/public/template1.png' },
-  { id: 'template2', preview: '/public/template2.png' },
-  { id: 'template3', preview: '/public/template3.png' }
-]
 
 const activeTab = ref('shapes')
 
@@ -128,7 +111,6 @@ const addElement = (type) => {
     }
   }
 
-  // Handle different element types
   if (type.startsWith('shape')) {
     const shape = shapes.find(s => s.id === type)
     if (shape) {
@@ -257,7 +239,7 @@ const handleCreateTextBlock = ({ fontFamily, fontSize, className }) => {
 const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
   if (!selectedElement.value) return
   
-  // Update the style properties
+
   selectedElement.value.style = {
     ...selectedElement.value.style,
     fontFamily,
@@ -265,9 +247,25 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
   }
   selectedElement.value.class = className
 
-  // Emit the updated element to the parent
+
   emit('update-element', { ...selectedElement.value })
 }
+
+const handleCanvasResize = (dimensions) => {
+  emit('resize-canvas', dimensions)
+}
+const tabIconMap = {
+  'Элементы': 'elements',
+  'Текст': 'text',
+  'stickers': 'stikers',
+  'instagram': 'dounloads',
+  'upload': 'dounloads',
+  'Фон': 'background',
+  'AI фото': 'ai',
+  'Фото': 'foto',
+  'Размеры': 'size'
+}
+
 
 </script>
 
@@ -275,11 +273,13 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
   <div class="elements-panel">
     <div class="tabs">
       <button 
-        v-for="tab in ['Элементы', 'Текст', 'stickers', 'instagram', 'upload', 'Фон', 'AI фото', 'Фото', 'Шаблоны']"
+        v-for="tab in ['Элементы', 'Текст', 'stickers', 'upload', 'Фон', 'AI фото', 'Фото', 'Размеры']"
         :key="tab"
         :class="['tab-btn', { active: activeTab === tab }]"
         @click="activeTab = tab"
       >
+      <img :src="`/icons/${tabIconMap[tab]}.svg`" :alt="tab" class="tab-icon">
+
         {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
       </button>
     </div>
@@ -486,21 +486,9 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
             id="file-upload"
           >
           <label for="file-upload" class="upload-label">
-            <span class="upload-icon">📁</span>
+
+           <img src="/icons/plus.svg" alt="upload">
             <span>Загрузить изображение</span>
-          </label>
-        </div>
-        <div class="upload-area">
-          <input
-            type="file"
-            accept="image/gif"
-            @change="handleFileUpload"
-            class="file-input"
-            id="gif-upload"
-          >
-          <label for="gif-upload" class="upload-label">
-            <span class="upload-icon">🎬</span>
-            <span>Загрузить GIF</span>
           </label>
         </div>
       </div>
@@ -509,23 +497,20 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
         <Background @set-background="(url) => emit('set-background', url)" />
       </div>
 
-      <div v-if="activeTab === 'AI фото'">
-        <AI />
-      </div>
-
       <div v-if="activeTab === 'Фото'">
         <Photo @set-background="(url) => emit('set-background', url)" />
       </div>
 
-      <div v-if="activeTab === 'Шаблоны'" class="templates-grid">
-        <div
-          v-for="template in templates"
-          :key="template.id"
-          class="template-item"
-          @click="applyTemplate(template.id)"
-        >
-          <img :src="template.preview" :alt="template.id" class="template-preview">
-        </div>
+      <div v-if="activeTab === 'AI фото'">
+       <AI/>
+      </div>
+
+      <div v-if="activeTab === 'Размеры'" class="resize-section">
+        <CanvasResize 
+          :initial-width="620"
+          :initial-height="520"
+          @resize="handleCanvasResize"
+        />
       </div>
     </div>
   </div>
@@ -540,12 +525,16 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
 .tabs {
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid #ddd;
-  margin-bottom: 1rem;
-  gap: 1rem;
+  margin: 1rem 0;
+  gap: 15px;
 }
 
 .tab-btn {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
   width: 70px;
   height: 70px;
   border-radius: 10px;
@@ -553,11 +542,23 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
   border: none;
   cursor: pointer;
   font-size: 10px;
+  padding: 5px;
+  word-break: break-word;
+  line-height: 1.2;
+
+  img {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 .tab-btn.active {
   background: #F37021;
   color: white;
+
+  img {
+    filter: brightness(0) invert(1);
+  }
 }
 
 .tab-content {
@@ -589,11 +590,6 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
   font-size: 1.5rem;
 }
 
-.element-name {
-  font-size: 0.8rem;
-  text-align: center;
-}
-
 .sticker-preview {
   width: 40px;
   height: 40px;
@@ -609,19 +605,16 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
 
 .upload-area {
   position: relative;
-  border: 2px dashed #ddd;
+  background: #F3F3F3;
   border-radius: 4px;
-  padding: 2rem;
+  padding: 1rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .upload-area:hover {
-  border-color: #2196F3;
-  background-color: #f5f5f5;
+  background: #D9D9D9;
 }
-
 .file-input {
   position: absolute;
   width: 1px;
@@ -635,57 +628,11 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
 
 .upload-label {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 10px;
   cursor: pointer;
-}
-
-.upload-icon {
-  font-size: 2rem;
-}
-
-.templates-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  padding: 1rem;
-}
-
-.template-item {
-  position: relative;
-  cursor: pointer;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: transform 0.2s;
-}
-
-.template-item:hover {
-  transform: scale(1.02);
-}
-
-.template-preview {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-}
-
-.template-name {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 0.5rem;
-  text-align: center;
-}
-
-.element-description {
-  font-size: 0.7rem;
-  color: #666;
-  text-align: center;
-  margin-top: 0.25rem;
+  color: #162A47;
 }
 
 .sticker-btn {
@@ -725,14 +672,6 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
 .element-icon {
   font-size: 1.5rem;
   transition: transform 0.3s ease;
-}
-
-.element-description {
-  font-size: 0.7rem;
-  color: #666;
-  text-align: center;
-  margin-top: 0.25rem;
-  transition: color 0.3s ease;
 }
 
 .stickers-section {
@@ -823,5 +762,10 @@ const handleTextStyleChange = ({ fontFamily, fontSize, className }) => {
   transform: scale(1.05);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-color: #F37021;
+}
+
+.resize-section {
+  height: 100%;
+  overflow-y: auto;
 }
 </style>

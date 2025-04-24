@@ -86,11 +86,9 @@ watch(
     () => props.modelValue,
     (newVal) => {
       if (!newVal) return
-      
-      // Update selected font from the element's style
+
       selectedFont.value = newVal.style?.fontFamily || fontFamilies[0]
-      
-      // Extract heading level from class name
+
       const headingMatch = newVal.class?.match(/heading-h(\d)/i)
       if (headingMatch) {
         const level = headingMatch[1]
@@ -150,12 +148,15 @@ watch([selectedFont, selectedHeading], () => {
 }
 
 .create-btn {
-  background-color: #2196F3;
-  color: white;
+  background: #F3F3F3;
+  color: #162A47;
   padding: 0.5rem;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+}
+.create-btn:hover{
+  background: #D9D9D9;
 }
 .tabs {
   display: flex;

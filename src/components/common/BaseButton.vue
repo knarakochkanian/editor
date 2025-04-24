@@ -29,7 +29,7 @@ const props = defineProps({
 <style scoped>
 .base-button {
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
