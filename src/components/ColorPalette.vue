@@ -27,14 +27,14 @@ watch(
   () => props.selectedElement,
   (newVal) => {
     if (newVal?.style) {
-      // For text elements, track text color and spacing
+
       if (newVal.type === 'text') {
         selectedColor.value = newVal.style.color || '#000000'
         backgroundColor.value = newVal.style.backgroundColor || 'transparent'
         lineHeight.value = parseFloat(newVal.style.lineHeight) || 1.5
         letterSpacing.value = parseFloat(newVal.style.letterSpacing) || 0
       }
-      // For shape elements, track background color
+
       else if (newVal.type === 'rectangle' || newVal.type === 'circle' || newVal.type === 'triangle' || newVal.type === 'star' || newVal.type === 'heart') {
         backgroundColor.value = newVal.style.backgroundColor || '#F37021'
       }

@@ -204,10 +204,9 @@ const handleMoveElement = (direction) => {
   if (index === -1) return
 
   if (direction === 'up' && index < store.elements.length - 1) {
-    // Move element up in z-index (swap with the next element)
+
     [store.elements[index], store.elements[index + 1]] = [store.elements[index + 1], store.elements[index]]
   } else if (direction === 'down' && index > 0) {
-    // Move element down in z-index (swap with the previous element)
     [store.elements[index], store.elements[index - 1]] = [store.elements[index - 1], store.elements[index]]
   }
 }
@@ -250,7 +249,6 @@ const handleCanvasResize = ({ width, height, isProportional }) => {
   const scaleX = width / canvasSize.value.width
   const scaleY = height / canvasSize.value.height
 
-  // Ensure we're working with integers
   const newWidth = parseInt(width)
   const newHeight = parseInt(height)
 
