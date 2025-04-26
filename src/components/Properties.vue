@@ -26,31 +26,8 @@ const updateProperty = (key, value) => {
 
 <template>
   <div class="properties-panel">
-    <h4>Properties</h4>
-    
-    <div v-if="selectedElement" class="properties-section">
-      <div class="property-group">
-        <label>Size</label>
-        <div class="size-inputs">
-          <div class="input-group">
-            <span>W</span>
-            <input 
-              type="number" 
-              v-model="properties.width"
-              @change="updateProperty('width', properties.width)"
-            >
-          </div>
-          <div class="input-group">
-            <span>H</span>
-            <input 
-              type="number" 
-              v-model="properties.height"
-              @change="updateProperty('height', properties.height)"
-            >
-          </div>
-        </div>
-      </div>
 
+    <div v-if="selectedElement" class="properties-section">
       <div class="property-group">
         <label>Повернуть</label>
         <input 

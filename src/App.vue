@@ -58,16 +58,28 @@ const handleElementUpdate = (updatedElement) => {
 
 const handleAlignment = (alignment) => {
   if (!store.selectedElement) return
-  
-  const element = { ...store.selectedElement }
+
+  const element = {
+    id: Date.now(),
+    type,
+    content: '',
+    x: 100,
+    y: 100,
+    width: 150,
+    height: 150,
+    rotation: 0,
+    opacity: 100,
+
+  }
+
   const contentArea = document.querySelector('.content-area')
   const contentRect = contentArea.getBoundingClientRect()
-  
+
 
   const padding = 24
   const availableWidth = contentRect.width - (padding * 2)
   const availableHeight = contentRect.height - (padding * 2)
-  
+
   switch (alignment) {
     case 'top-left':
       element.x = padding
@@ -120,9 +132,9 @@ const handleDownload = () => {
     orientation: orientation.value,
     elements: store.elements
   }
-  
+
   const jsonString = JSON.stringify(layoutData, null, 2)
-  
+
   const blob = new Blob([jsonString], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -133,24 +145,44 @@ const handleDownload = () => {
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
-
 const startDrag = (event, element) => {
-  const startX = event.clientX - element.x
-  const startY = event.clientY - element.y
-  
+  event.preventDefault()
+  event.stopPropagation()
+
+  const startX = event.clientX
+  const startY = event.clientY
+  const initialX = element.x
+  const initialY = element.y
+
+  const contentArea = document.querySelector('.content-area')
+  const canvasRect = contentArea.getBoundingClientRect()
+
   const drag = (e) => {
-    element.x = e.clientX - startX
-    element.y = e.clientY - startY
+    const deltaX = e.clientX - startX
+    const deltaY = e.clientY - startY
+
+    let newX = initialX + deltaX
+    let newY = initialY + deltaY
+
+    // Ограничения по ширине и высоте канваса
+    const maxX = canvasRect.width - element.width
+    const maxY = canvasRect.height - element.height
+
+    element.x = Math.max(0, Math.min(newX, maxX))
+    element.y = Math.max(0, Math.min(newY, maxY))
   }
-  
+
   const stopDrag = () => {
     document.removeEventListener('mousemove', drag)
     document.removeEventListener('mouseup', stopDrag)
+    store.updateElement({ ...element })
   }
-  
+
   document.addEventListener('mousemove', drag)
   document.addEventListener('mouseup', stopDrag)
 }
+
+
 
 import html2canvas from 'html2canvas'
 
@@ -258,7 +290,7 @@ const handleCanvasResize = ({ width, height, isProportional }) => {
     width: newWidth,
     height: newHeight
   }
-  
+
   if (isProportional) {
     store.elements.forEach(element => {
       const updatedElement = {
@@ -280,15 +312,74 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
 })
+const startResize = (event, element, direction) => {
+  event.stopPropagation()
+  const startX = event.clientX
+  const startY = event.clientY
+  const startWidth = element.width
+  const startHeight = element.height
+  const startLeft = element.x
+  const startTop = element.y
 
+  const resize = (e) => {
+    const deltaX = e.clientX - startX
+    const deltaY = e.clientY - startY
+
+    switch (direction) {
+      case 'br': // bottom-right
+        element.width = Math.max(20, startWidth + deltaX)
+        element.height = Math.max(20, startHeight + deltaY)
+        break
+      case 'bl': // bottom-left
+        element.x = startLeft + deltaX
+        element.width = Math.max(20, startWidth - deltaX)
+        element.height = Math.max(20, startHeight + deltaY)
+        break
+      case 'tr': // top-right
+        element.y = startTop + deltaY
+        element.height = Math.max(20, startHeight - deltaY)
+        element.width = Math.max(20, startWidth + deltaX)
+        break
+      case 'tl': // top-left
+        element.x = startLeft + deltaX
+        element.y = startTop + deltaY
+        element.width = Math.max(20, startWidth - deltaX)
+        element.height = Math.max(20, startHeight - deltaY)
+        break
+      case 'ml': // middle-left
+        element.x = startLeft + deltaX
+        element.width = Math.max(20, startWidth - deltaX)
+        break
+      case 'mr': // middle-right
+        element.width = Math.max(20, startWidth + deltaX)
+        break
+      case 'tm': // top-middle
+        element.y = startTop + deltaY
+        element.height = Math.max(20, startHeight - deltaY)
+        break
+      case 'bm': // bottom-middle
+        element.height = Math.max(20, startHeight + deltaY)
+        break
+    }
+  }
+
+  const stopResize = () => {
+    document.removeEventListener('mousemove', resize)
+    document.removeEventListener('mouseup', stopResize)
+    store.updateElement({ ...element })
+  }
+
+  document.addEventListener('mousemove', resize)
+  document.addEventListener('mouseup', stopResize)
+}
 </script>
 
 <template>
   <Header @download-pdf="downloadAsPNG" />
   <div class="editor-container">
     <div class="left-panel">
-      <Elements 
-        @add-element="handleAddElement" 
+      <Elements
+        @add-element="handleAddElement"
         @set-background="handleSetBackground"
         @resize-canvas="handleCanvasResize"
       />
@@ -356,22 +447,22 @@ onUnmounted(() => {
           <p>Добавьте элементы с левой панели, чтобы начать создавать свой дизайн</p>
         </div>
         <div
-          v-for="element in store.elements"
-          :key="element.id"
-          class="content-element"
-          :class="['content-element', element.class, { selected: store.selectedElement?.id === element.id }]"
-          :style="{
-            position: 'absolute',
-            left: element.x + 'px',
-            top: element.y + 'px',
-            width: element.width + 'px',
-            height: element.height + 'px',
-            transform: `rotate(${element.rotation}deg)`,
-            opacity: element.opacity / 100,
-            ...(typeof element.style === 'object' ? element.style : {})
-          }"
-          @mousedown="startDrag($event, element)"
-          @click="handleElementSelect(element)"
+            v-for="element in store.elements"
+            @mousedown="startDrag($event, element)"
+            :key="element.id"
+            class="content-element"
+            :class="['content-element', element.class, { selected: store.selectedElement?.id === element.id }]"
+            :style="{
+    position: 'absolute',
+    left: element.x + 'px',
+    top: element.y + 'px',
+    width: element.width + 'px',
+    height: element.height + 'px',
+    transform: `rotate(${element.rotation}deg)`,
+    opacity: element.opacity / 100,
+    ...(typeof element.style === 'object' ? element.style : {})
+  }"
+            @click="handleElementSelect(element)"
         >
 
           <div v-if="element.type === 'text'" class="text-element" @click="handleTextClick($event, element)">
@@ -393,12 +484,12 @@ onUnmounted(() => {
           <div v-else-if="element.type === 'triangle'" class="shape-element triangle"></div>
           <div v-else-if="element.type === 'star'" class="shape-element star"></div>
           <div v-else-if="element.type === 'heart'" class="shape-element heart"></div>
-          
+
 
           <img v-else-if="element.type === 'image'" :src="element.url" :alt="element.name" class="image-element">
         </div>
       </div>
-      
+
       <ElementControls
         v-if="store.selectedElement"
         @copy="handleCopyElement"
@@ -410,7 +501,7 @@ onUnmounted(() => {
 
     <div class="right-panel">
       <Alignment @align="handleAlignment" />
-      <TextColorPicker 
+      <TextColorPicker
         :selected-element="store.selectedElement"
         @update="store.updateElement"
       />
@@ -418,11 +509,11 @@ onUnmounted(() => {
         :selected-element="store.selectedElement"
         @update="store.updateElement"
       />
-      <ColorPalette 
+      <ColorPalette
         :selected-element="store.selectedElement"
         @update="store.updateElement"
       />
-      <Properties 
+      <Properties
         :selected-element="store.selectedElement"
         @update="store.updateElement"
       />
@@ -510,7 +601,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 12px;
-  border: 1px dashed #E0E0E0;
   border-radius: 8px;
   background-color: transparent;
   font-size: inherit;
@@ -585,7 +675,7 @@ input[type="number"] {
 
 input[type="number"]:focus {
   outline: none;
-  border-color: #2196F3;
+  border-color: #F37021;
 }
 
 .layout-pixta-desktop-header {

@@ -86,115 +86,60 @@ const stickers = [
 const activeTab = ref('shapes')
 
 const addElement = (type) => {
-  let element = {
+  if (type === 'text') {
+    console.warn('Текстовые блоки создаются через handleCreateTextBlock')
+    return
+  }
+
+  const element = {
     id: Date.now(),
     type,
     content: '',
+    x: 100,
+    y: 100,
+    width: 150,
+    height: 150,
+    rotation: 0,
+    opacity: 100,
     style: {
       position: 'absolute',
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: '200px',
-      height: '200px',
-      backgroundColor: '#F37021',
+      backgroundColor: 'transparent',
+      backgroundImage: 'none',
+      backgroundSize: 'contain',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       cursor: 'move',
-      userSelect: 'none',
-      borderRadius: '0',
-      backgroundImage: 'none',
-      backgroundSize: 'contain',
-      backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'center'
+      userSelect: 'none'
     }
   }
 
-  if (type.startsWith('shape')) {
-    const shape = shapes.find(s => s.id === type)
-    if (shape) {
-      element.style.backgroundImage = `url(${shape.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('arrow')) {
-    const arrow = arrows.find(a => a.id === type)
-    if (arrow) {
-      element.style.backgroundImage = `url(${arrow.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('scope')) {
-    const scope = scopes.find(s => s.id === type)
-    if (scope) {
-      element.style.backgroundImage = `url(${scope.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('abstract')) {
-    const abstract = abstractShapes.find(a => a.id === type)
-    if (abstract) {
-      element.style.backgroundImage = `url(${abstract.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('brush')) {
-    const brush = brushes.find(b => b.id === type)
-    if (brush) {
-      element.style.backgroundImage = `url(${brush.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('heart')) {
-    const heart = hearts.find(h => h.id === type)
-    if (heart) {
-      element.style.backgroundImage = `url(${heart.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('badge')) {
-    const badge = discountBadges.find(b => b.id === type)
-    if (badge) {
-      element.style.backgroundImage = `url(${badge.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('tag')) {
-    const tag = priceTags.find(t => t.id === type)
-    if (tag) {
-      element.style.backgroundImage = `url(${tag.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('gif')) {
-    const gif = gifs.find(g => g.id === type)
-    if (gif) {
-      element.style.backgroundImage = `url(${gif.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('gifArrow')) {
-    const gifArrow = gifArrows.find(g => g.id === type)
-    if (gifArrow) {
-      element.style.backgroundImage = `url(${gifArrow.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type.startsWith('sticker')) {
-    const sticker = stickers.find(s => s.id === type)
-    if (sticker) {
-      element.style.backgroundImage = `url(${sticker.url})`
-      element.style.backgroundColor = 'transparent'
-    }
-  } else if (type === 'link' || type === 'mention' || type === 'hashtag' || 
-             type === 'location' || type === 'music' || type === 'poll' || 
-             type === 'question' || type === 'countdown' || type === 'quiz' || 
-             type === 'slider') {
-    const sticker = instagramStickers.find(s => s.id === type)
-    if (sticker) {
-      element.style.backgroundColor = sticker.color
-      element.style.color = 'white'
-      element.style.fontSize = '24px'
-      element.content = sticker.icon
-      element.style.display = 'flex'
-      element.style.alignItems = 'center'
-      element.style.justifyContent = 'center'
-    }
+  const getUrlFromGroup = (group) => group.find(el => el.id === type)?.url
+
+  const url =
+      getUrlFromGroup(shapes) ||
+      getUrlFromGroup(arrows) ||
+      getUrlFromGroup(scopes) ||
+      getUrlFromGroup(abstractShapes) ||
+      getUrlFromGroup(brushes) ||
+      getUrlFromGroup(hearts) ||
+      getUrlFromGroup(discountBadges) ||
+      getUrlFromGroup(priceTags) ||
+      getUrlFromGroup(gifs) ||
+      getUrlFromGroup(gifArrows) ||
+      getUrlFromGroup(stickers)
+
+  if (url) {
+    element.style.backgroundImage = `url(${url})`
   }
 
   emit('add-element', element)
 }
+
+
+
 
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
@@ -202,14 +147,35 @@ const handleFileUpload = (event) => {
     const reader = new FileReader()
     reader.onload = (e) => {
       emit('add-element', {
-        type: 'image',
-        url: e.target.result,
-        name: file.name
+        id: Date.now(),
+        type: 'uploaded-image',
+        content: '',
+        x: 100,
+        y: 100,
+        width: 150,
+        height: 150,
+        rotation: 0,
+        opacity: 100,
+        style: {
+          position: 'absolute',
+          backgroundImage: `url(${e.target.result})`,
+          backgroundSize: 'contain',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center',
+          backgroundColor: 'transparent',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'move',
+          userSelect: 'none'
+        }
       })
     }
     reader.readAsDataURL(file)
   }
 }
+
+
 const selectedElement = ref(null)
 
 const handleCreateTextBlock = ({ fontFamily, fontSize, className }) => {
