@@ -29,6 +29,7 @@ const handleAddElement = (element) => {
   store.addElement(element)
 }
 
+
 const handleElementSelect = (element) => {
   store.setSelectedElement(element)
 }
@@ -464,18 +465,27 @@ const startResize = (event, element, direction) => {
   }"
             @click="handleElementSelect(element)"
         >
-
+          <div v-if="store.selectedElement?.id === element.id">
+            <div class="resize-handle handle-tl" @mousedown="(e) => startResize(e, element, 'tl')"></div>
+            <div class="resize-handle handle-tm" @mousedown="(e) => startResize(e, element, 'tm')"></div>
+            <div class="resize-handle handle-tr" @mousedown="(e) => startResize(e, element, 'tr')"></div>
+            <div class="resize-handle handle-ml" @mousedown="(e) => startResize(e, element, 'ml')"></div>
+            <div class="resize-handle handle-mr" @mousedown="(e) => startResize(e, element, 'mr')"></div>
+            <div class="resize-handle handle-bl" @mousedown="(e) => startResize(e, element, 'bl')"></div>
+            <div class="resize-handle handle-bm" @mousedown="(e) => startResize(e, element, 'bm')"></div>
+            <div class="resize-handle handle-br" @mousedown="(e) => startResize(e, element, 'br')"></div>
+          </div>
           <div v-if="element.type === 'text'" class="text-element" @click="handleTextClick($event, element)">
-            <input
-              v-if="store.selectedElement?.id === element.id"
-              type="text"
-              v-model="element.content"
-              ref="textInput"
-              class="text-input"
-              @blur="element.isNew = false"
-              @input="handleTextEdit($event, element)"
-              @click.stop
-            />
+  <textarea
+      v-if="store.selectedElement?.id === element.id"
+      ref="textInput"
+      class="text-input"
+      :value="element.content"
+      @input="handleTextEdit($event, element)"
+      @click.stop
+      @blur="element.isNew = false"
+      rows="1"
+  />
             <span v-else>{{ element.content }}</span>
           </div>
 
@@ -591,7 +601,7 @@ const startResize = (event, element, direction) => {
 }
 
 .content-element.selected {
-  outline: 2px solid #2196F3;
+  outline: 2px solid #F37021;
 }
 
 .text-element {
@@ -753,4 +763,42 @@ input[type="number"]:focus {
 .text-sm {
   font-size: 0.875rem;
 }
+.resize-handle {
+  width: 10px;
+  height: 10px;
+  background: #F37021;
+  border-radius: 50%;
+  position: absolute;
+  z-index: 10;
+}
+
+.handle-tl { top: -5px; left: -5px; cursor: nwse-resize; }
+.handle-tm { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle-tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.handle-ml { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
+.handle-mr { top: 50%; right: -5px; transform: translateY(-50%); cursor: ew-resize; }
+.handle-bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.handle-bm { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle-br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+.resize-handle:hover {
+  background: #FF8C42;
+}
+.text-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  font-size: inherit;
+  font-family: inherit;
+  color: inherit;
+  resize: none;
+  text-align: center;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
 </style>
