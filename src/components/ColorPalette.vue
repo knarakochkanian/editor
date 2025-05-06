@@ -119,53 +119,6 @@ const handleLetterSpacingChange = (value) => {
       </div>
     </div>
 
-    <div class="section" v-if="selectedElement.type === 'text'">
-      <h4>Межстрочный интервал</h4>
-      <div class="range-control">
-        <input 
-          type="range" 
-          v-model="lineHeight" 
-          min="0.5" 
-          max="3" 
-          step="0.1"
-          @input="handleLineHeightChange(lineHeight)"
-        >
-        <span class="range-value">{{ lineHeight }}</span>
-      </div>
-    </div>
-
-    <div class="section" v-if="selectedElement.type === 'text'">
-      <h4>Интервал между символами</h4>
-      <div class="range-control">
-        <input 
-          type="range" 
-          v-model="letterSpacing" 
-          min="-5" 
-          max="20" 
-          step="1"
-          @input="handleLetterSpacingChange(letterSpacing)"
-        >
-        <span class="range-value">{{ letterSpacing }}px</span>
-      </div>
-    </div>
-
-    <div class="section">
-      <h4>Готовые цвета</h4>
-      <div class="palettes">
-        <div v-for="(colors, name) in predefinedPalettes" :key="name" class="palette">
-          <h5>{{ name }}</h5>
-          <div class="palette-colors">
-            <div
-              v-for="color in colors"
-              :key="color"
-              class="palette-color"
-              :style="{ backgroundColor: color }"
-              @click="handleBackgroundColorChange(color)"
-            ></div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 

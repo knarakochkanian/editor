@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import {onMounted, onUnmounted, ref} from 'vue'
 import Elements from './components/Elements.vue'
 import ColorPalette from './components/ColorPalette.vue'
 import Alignment from './components/Alignment.vue'
@@ -8,8 +8,8 @@ import TextColorPicker from './components/TextColorPicker.vue'
 import TextProperties from './components/TextProperties.vue'
 import Header from "@/components/Header.vue";
 import ElementControls from './components/ElementControls.vue'
-import CanvasResize from './components/CanvasResize.vue'
-import { useElementStore } from './stores/elementStore'
+import {useElementStore} from './stores/elementStore'
+import html2canvas from 'html2canvas'
 
 const store = useElementStore()
 const backgroundImage = ref(null)
@@ -18,9 +18,14 @@ const handleSetBackground = (url) => {
   backgroundImage.value = url
 }
 
-const canvasSize = ref({
+const originalDimensions = ref({
   width: 620,
   height: 520
+})
+
+const canvasSize = ref({
+  width: originalDimensions.value.width,
+  height: originalDimensions.value.height
 })
 
 const orientation = ref('landscape')
@@ -35,22 +40,56 @@ const handleElementSelect = (element) => {
 }
 
 const handleTextEdit = (event, element) => {
-  if (event.target.value === null || event.target.value === undefined) {
-    element.content = ''
-  } else {
-    element.content = event.target.value
-    const textarea = event.target
-    const lines = element.content.split('\n').length
-    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20
-    const newHeight = Math.max(100, lines * lineHeight + 24)
-    element.height = newHeight
-    store.updateElement(element)
+  const newContent = event.target.value
+  const textarea = event.target
+  const lines = newContent.split('\n').length
+  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20
+  const newHeight = Math.max(100, lines * lineHeight + 24)
+
+  const updatedElement = {
+    ...element,
+    content: newContent,
+    height: newHeight,
+    isEditing: true,
+    style: {
+      ...element.style,
+      color: element.style?.color || '#000000',
+      backgroundColor: element.style?.backgroundColor || 'transparent',
+      fontFamily: element.style?.fontFamily || 'Arial',
+      fontSize: element.style?.fontSize || '16px',
+      lineHeight: element.style?.lineHeight || 1.5,
+      letterSpacing: element.style?.letterSpacing || 0
+    }
   }
+
+  store.updateElement(updatedElement)
 }
 
 const handleTextClick = (event, element) => {
   event.stopPropagation()
   store.setSelectedElement(element)
+}
+
+const handleTextDoubleClick = (event, element) => {
+  event.stopPropagation()
+  store.setSelectedElement(element)
+  element.isEditing = true
+  
+  store.updateElement({ ...element })
+  
+  setTimeout(() => {
+    const textarea = event.target.closest('.text-element').querySelector('textarea')
+    if (textarea) {
+      textarea.focus()
+      const length = textarea.value.length
+      textarea.setSelectionRange(length, length)
+    }
+  }, 0)
+}
+
+const handleTextBlur = (element) => {
+  element.isEditing = false
+  store.updateElement({ ...element })
 }
 
 const handleElementUpdate = (updatedElement) => {
@@ -183,9 +222,6 @@ const startDrag = (event, element) => {
   document.addEventListener('mouseup', stopDrag)
 }
 
-
-
-import html2canvas from 'html2canvas'
 
 const downloadAsPNG = async () => {
   const content = document.querySelector('.content-area')
@@ -373,6 +409,81 @@ const startResize = (event, element, direction) => {
   document.addEventListener('mousemove', resize)
   document.addEventListener('mouseup', stopResize)
 }
+
+const scale = ref(100)
+
+const handleScaleChange = () => {
+  const scaleValue = Math.min(Math.max(scale.value, 5), 100)
+  const contentArea = document.querySelector('.content-area')
+  const mainContent = document.querySelector('.main-content')
+  
+  if (contentArea && mainContent) {
+    const mainContentWidth = mainContent.clientWidth
+    const mainContentHeight = mainContent.clientHeight
+
+    const aspectRatio = originalDimensions.value.height / originalDimensions.value.width
+    let newWidth = Math.round((originalDimensions.value.width * scaleValue) / 100)
+    let newHeight = Math.round(newWidth * aspectRatio)
+
+    if (newWidth > mainContentWidth) {
+      newWidth = mainContentWidth
+      newHeight = Math.round(newWidth * aspectRatio)
+    }
+
+    if (newHeight > mainContentHeight) {
+      const heightRatio = mainContentHeight / newHeight
+      newHeight = mainContentHeight
+      newWidth = Math.round(newWidth * heightRatio)
+    }
+    
+    canvasSize.value = {
+      width: newWidth,
+      height: newHeight
+    }
+  }
+}
+
+const fitToScreen = () => {
+  const mainContent = document.querySelector('.main-content')
+  if (mainContent) {
+    const mainContentWidth = mainContent.clientWidth
+    const mainContentHeight = mainContent.clientHeight
+    const aspectRatio = originalDimensions.value.height / originalDimensions.value.width
+    
+    let newWidth = mainContentWidth
+    let newHeight = Math.round(newWidth * aspectRatio)
+
+    if (newHeight > mainContentHeight) {
+      const heightRatio = mainContentHeight / newHeight
+      newHeight = mainContentHeight
+      newWidth = Math.round(newWidth * heightRatio)
+    }
+    
+    canvasSize.value = {
+      width: newWidth,
+      height: newHeight
+    }
+    scale.value = 100
+  }
+}
+
+const rotateLeft = () => {
+  const newWidth = canvasSize.value.height
+  const newHeight = canvasSize.value.width
+  canvasSize.value = {
+    width: newWidth,
+    height: newHeight
+  }
+}
+
+const rotateRight = () => {
+  const newWidth = canvasSize.value.height
+  const newHeight = canvasSize.value.width
+  canvasSize.value = {
+    width: newWidth,
+    height: newHeight
+  }
+}
 </script>
 
 <template>
@@ -388,47 +499,24 @@ const startResize = (event, element, direction) => {
 
     <div class="main-content">
       <div class="layout-pixta-desktop-header">
-        <div class="layout-pixta-desktop-header__rotate">
-          <div class="flex gap-xxxs">
-            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="rotateLeft">
-            <span class="button__wrapper">
-              <span class="button__ico">
-                <svg><use xlink:href="#ico-rotate-left"></use></svg>
-              </span>
-            </span>
-            </button>
-            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="rotateRight">
-            <span class="button__wrapper">
-              <span class="button__ico">
-                <svg><use xlink:href="#ico-rotate-right"></use></svg>
-              </span>
-            </span>
-            </button>
-          </div>
-        </div>
-
         <div class="flex items-center">
           <div class="text-sm text-right" style="min-width: 3em;">
             {{ scale }}%
           </div>
           <div class="flex-1" style="margin: 0 0.8em;">
-            <input
+            <div class="ngx-slider-wrapper">
+              <span class="ngx-slider-span ngx-slider-bar-wrapper ngx-slider-full-bar">
+                <span class="ngx-slider-span ngx-slider-bar" :style="{ width: `${scale}%` }"></span>
+              </span>
+              <input
                 type="range"
                 v-model="scale"
                 min="5"
-                max="300"
+                max="100"
                 class="slider"
                 @input="handleScaleChange"
-            >
-          </div>
-          <div>
-            <button type="button" class="button color-secondary radius-base button--flat button--ico button--animate" @click="fitToScreen">
-            <span class="button__wrapper">
-              <span class="button__ico">
-                <svg><use xlink:href="#ico-fit-to-screen"></use></svg>
-              </span>
-            </span>
-            </button>
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -475,18 +563,38 @@ const startResize = (event, element, direction) => {
             <div class="resize-handle handle-bm" @mousedown="(e) => startResize(e, element, 'bm')"></div>
             <div class="resize-handle handle-br" @mousedown="(e) => startResize(e, element, 'br')"></div>
           </div>
-          <div v-if="element.type === 'text'" class="text-element" @click="handleTextClick($event, element)">
-  <textarea
-      v-if="store.selectedElement?.id === element.id"
-      ref="textInput"
-      class="text-input"
-      :value="element.content"
-      @input="handleTextEdit($event, element)"
-      @click.stop
-      @blur="element.isNew = false"
-      rows="1"
-  />
-            <span v-else>{{ element.content }}</span>
+          <div v-if="element.type === 'text'" 
+               class="text-element" 
+               @click="handleTextClick($event, element)"
+               @dblclick="handleTextDoubleClick($event, element)">
+            <textarea
+                v-if="store.selectedElement?.id === element.id && element.isEditing"
+                ref="textInput"
+                class="text-input"
+                v-model="element.content"
+                @input="handleTextEdit($event, element)"
+                @blur="handleTextBlur(element)"
+                @keydown.enter.prevent="handleTextBlur(element)"
+                rows="1"
+                :style="{
+                  fontFamily: element.style?.fontFamily || 'Arial',
+                  fontSize: element.style?.fontSize || '16px',
+                  color: element.style?.color || '#000000',
+                  lineHeight: element.style?.lineHeight || '1.5',
+                  letterSpacing: element.style?.letterSpacing || '0px',
+                  backgroundColor: element.style?.backgroundColor || 'transparent',
+                  textAlign: 'center'
+                }"
+            />
+            <span v-else :style="{
+              fontFamily: element.style?.fontFamily || 'Arial',
+              fontSize: element.style?.fontSize || '16px',
+              color: element.style?.color || '#000000',
+              lineHeight: element.style?.lineHeight || '1.5',
+              letterSpacing: element.style?.letterSpacing || '0px',
+              backgroundColor: element.style?.backgroundColor || 'transparent',
+              textAlign: 'center'
+            }">{{ element.content }}</span>
           </div>
 
           <div v-else-if="element.type === 'rectangle'" class="shape-element rectangle"></div>
@@ -496,7 +604,15 @@ const startResize = (event, element, direction) => {
           <div v-else-if="element.type === 'heart'" class="shape-element heart"></div>
 
 
-          <img v-else-if="element.type === 'image'" :src="element.url" :alt="element.name" class="image-element">
+          <div v-else-if="element.type === 'image'" class="phone-mockup">
+            <div class="phone-frame">
+              <div class="phone-notch"></div>
+              <div class="phone-screen">
+                <img :src="element.url" :alt="element.name" class="image-element">
+              </div>
+              <div class="phone-home-button"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -553,6 +669,9 @@ const startResize = (event, element, direction) => {
 .main-content {
   padding: 20px;
   background-color: #F5F5F5;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
 .input-group label {
@@ -571,6 +690,7 @@ const startResize = (event, element, direction) => {
   margin: 0 auto;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   transition: width 0.3s, height 0.3s;
+  max-width: 100%;
 }
 
 .placeholder-content {
@@ -627,16 +747,20 @@ const startResize = (event, element, direction) => {
   font-size: inherit;
   font-family: inherit;
   color: inherit;
+  resize: none;
   text-align: center;
   outline: none;
   padding: 0;
   margin: 0;
-  cursor: text;
+  line-height: 1.4;
+  overflow: hidden;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  cursor: text;
+  z-index: 1;
 }
 
 .text-input:focus {
@@ -666,11 +790,70 @@ const startResize = (event, element, direction) => {
   clip-path: path('M12,21.35l-1.45-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z');
 }
 
+.phone-mockup {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.phone-frame {
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+  border-radius: 40px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  box-shadow: 0 0 0 2px #333, 0 0 0 6px #1a1a1a;
+}
+
+.phone-notch {
+  width: 40%;
+  height: 20px;
+  background: #1a1a1a;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 30px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-home-button {
+  width: 30px;
+  height: 30px;
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .image-element {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  border-radius: 8px;
+  object-fit: cover;
+  border-radius: 20px;
 }
 
 input[type="number"] {
@@ -690,56 +873,56 @@ input[type="number"]:focus {
 
 .layout-pixta-desktop-header {
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid #eee;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 1rem;
+  max-width: 100%;
+  margin: 0 auto;
 }
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.button__wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.button__ico {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.button__ico svg {
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
-}
-
-.slider {
+.ngx-slider-wrapper {
+  position: relative;
   width: 100%;
+  max-width: 300px;
   height: 4px;
   background: #ddd;
   border-radius: 2px;
-  outline: none;
+  margin: 0 auto;
+}
+
+.ngx-slider-span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.ngx-slider-bar-wrapper {
+  opacity: 1;
+  visibility: visible;
+  transform: rotate(0deg);
+  overflow: hidden;
+}
+
+.ngx-slider-bar {
+  background: #F37021;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+  height: 100%;
+}
+
+.slider {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
   -webkit-appearance: none;
+  background: transparent;
+  margin: 0;
+  padding: 0;
 }
 
 .slider::-webkit-slider-thumb {
@@ -749,6 +932,8 @@ input[type="number"]:focus {
   background: #F37021;
   border-radius: 50%;
   cursor: pointer;
+  margin-top: -6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .slider::-moz-range-thumb {
@@ -758,11 +943,32 @@ input[type="number"]:focus {
   border-radius: 50%;
   cursor: pointer;
   border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .text-sm {
   font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+  min-width: 40px;
+  text-align: right;
 }
+
+.flex {
+  display: flex;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-1 {
+  flex: 1;
+  min-width: 0;
+  max-width: 300px;
+}
+
 .resize-handle {
   width: 10px;
   height: 10px;
@@ -783,22 +989,6 @@ input[type="number"]:focus {
 
 .resize-handle:hover {
   background: #FF8C42;
-}
-.text-input {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: transparent;
-  font-size: inherit;
-  font-family: inherit;
-  color: inherit;
-  resize: none;
-  text-align: center;
-  outline: none;
-  padding: 0;
-  margin: 0;
-  line-height: 1.4;
-  overflow: hidden;
 }
 
 </style>

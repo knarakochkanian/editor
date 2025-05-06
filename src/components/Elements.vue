@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import Background from "@/components/Background.vue";
 import AI from "@/components/AI.vue";
-import Photo from "@/components/Photo.vue";
 import TextEditor from "@/components/TextEditor.vue";
 import CanvasResize from "@/components/CanvasResize.vue"
 
@@ -80,6 +79,13 @@ const stickers = [
   { id: 'sticker8', url: 'https://ycs-media.postmypost.io/r/150x600/pixta-assets/social-network-sticker/social-vkontakte-story-link-ru.png' },
   { id: 'sticker9', url: 'https://ycs-media.postmypost.io/r/150x600/pixta-assets/social-network-sticker/social-vkontakte-story-cta-ru.png' },
   { id: 'sticker10', url: 'https://ycs-media.postmypost.io/r/150x600/pixta-assets/social-network-sticker/social-vkontakte-story-repost.png' }
+]
+
+const photos = [
+  'public/backgrounds/foto1.jpeg',
+  'public/backgrounds/foto2.jpeg',
+  'public/backgrounds/foto3.jpeg',
+  'public/backgrounds/foto4.jpeg'
 ]
 
 
@@ -173,6 +179,32 @@ const handleFileUpload = (event) => {
     }
     reader.readAsDataURL(file)
   }
+}
+const addPhoto = (url) => {
+  emit('add-element', {
+    id: Date.now(),
+    type: 'photo',
+    content: '',
+    x: 100,
+    y: 100,
+    width: 150,
+    height: 150,
+    rotation: 0,
+    opacity: 100,
+    style: {
+      position: 'absolute',
+      backgroundImage: `url(${url})`,
+      backgroundSize: 'contain',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center',
+      backgroundColor: 'transparent',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'move',
+      userSelect: 'none'
+    }
+  })
 }
 
 
@@ -464,7 +496,23 @@ const tabIconMap = {
       </div>
 
       <div v-if="activeTab === 'Фото'">
-        <Photo @set-background="(url) => emit('set-background', url)" />
+        <div v-if="activeTab === 'Фото'" class="photos-section">
+          <h2>
+            Фото
+          </h2>
+          <input type="text" placeholder="Поиск" class="search" />
+          <div class="elements-grid">
+            <button
+                v-for="(photo, index) in photos"
+                :key="'photo-' + index"
+                class="element-btn photo-btn"
+                @click="addPhoto(photo)"
+            >
+              <img :src="photo" :alt="'Photo ' + (index + 1)" class="sticker-preview">
+            </button>
+          </div>
+        </div>
+
       </div>
 
       <div v-if="activeTab === 'AI фото'">
@@ -733,5 +781,27 @@ const tabIconMap = {
 .resize-section {
   height: 100%;
   overflow-y: auto;
+}
+h2 {
+  font-family: Proxima Nova,sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 100%;
+  color: #162A47;
+  padding-bottom: 5px;
+}
+.photos-section {
+  padding: 10px;
+}
+.search {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+  height: 50px;
+  top: 2475px;
+  left: 7858px;
+  border-radius: 10px;
+
 }
 </style>
